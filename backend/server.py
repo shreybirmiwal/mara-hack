@@ -7,6 +7,8 @@ import logging
 import time
 from openai import OpenAI
 import json
+import random
+import re
 
 app = Flask(__name__)
 CORS(app)
@@ -44,7 +46,7 @@ _cache = {
     'energy_data': None,
     'energy_stats': None,
     'last_fetch_time': None,
-    'cache_duration': 300  # 5 minutes cache
+    'cache_duration': 10  # 10 seconds cache for demo (set back to 300 for production)
 }
 
 # Price history storage (in production, this would be a database)
@@ -261,14 +263,17 @@ def fetch_and_cache_data():
         else:
             # If no API data, use mock data for demonstration
             logger.warning("No API data available, using mock data")
-            import random
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
-            # Add some realistic variation to mock data if we have history
-            base_variation = 0
-            if len(_price_history['data']) > 0:
-                # Add some market movement
-                base_variation = random.uniform(-10, 10)
+            # Create time-based variation for realistic price movements
+            time_seed = int(time.time() / 30)  # Change every 30 seconds
+            random.seed(time_seed)
+            
+            # Add market movement that changes over time
+            market_volatility = random.uniform(-20, 20)  # Overall market movement
+            base_variation = market_volatility if len(_price_history['data']) > 0 else 0
+            
+            logger.info(f"Mock data variation: {base_variation:.2f} (history entries: {len(_price_history['data'])})")
             
             for location_code, location_info in LOCATION_DATA.items():
                 # Generate realistic mock prices based on location type
@@ -285,8 +290,9 @@ def fetch_and_cache_data():
                 else:
                     base_price = random.uniform(25, 75)
                 
-                # Apply market variation
-                final_price = max(0, base_price + base_variation + random.uniform(-5, 5))
+                # Apply market variation with location-specific noise
+                location_variation = random.uniform(-8, 8)
+                final_price = max(0.01, base_price + base_variation + location_variation)
                 
                 processed_data.append({
                     'location_code': location_code,
@@ -301,9 +307,9 @@ def fetch_and_cache_data():
                     'price_category': 'high' if final_price > 50 else 'medium' if final_price > 25 else 'low'
                 })
         
-        # Calculate price changes and add to history
-        processed_data = calculate_price_changes(processed_data)
+        # Add to history first, then calculate price changes
         add_to_price_history(processed_data)
+        processed_data = calculate_price_changes(processed_data)
         
         # Sort by price for better visualization
         processed_data.sort(key=lambda x: x['price_mwh'], reverse=True)
@@ -434,10 +440,195 @@ def get_cache_info():
         'data_count': len(_cache['energy_data']) if _cache['energy_data'] else 0
     })
 
+def apply_scenario_effects(scenario, current_data):
+    """
+    Apply realistic scenario effects to the energy data to show visual impacts
+    """
+    import re
+    
+    # Make a deep copy of the data to modify
+    modified_data = [item.copy() for item in current_data]
+    effects_applied = []
+    
+    scenario_lower = scenario.lower()
+    
+    # Define scenario patterns and their effects
+    scenario_effects = {
+        # Weather events
+        'hailstorm|hail': {
+            'affects': ['Solar'],
+            'price_multiplier': lambda: random.uniform(2.5, 4.0),
+            'effect_desc': 'Solar panels damaged, massive price spikes'
+        },
+        'hurricane|storm|flooding': {
+            'affects': ['Traditional', 'Load Center', 'Load Zone'],
+            'price_multiplier': lambda: random.uniform(3.0, 5.0),
+            'effect_desc': 'Major infrastructure disrupted, emergency pricing'
+        },
+        'tornado|twister': {
+            'affects': ['Wind', 'Traditional'],
+            'price_multiplier': lambda: random.uniform(2.0, 3.5),
+            'effect_desc': 'Wind turbines and power plants damaged'
+        },
+        'ice storm|freeze|winter': {
+            'affects': ['Traditional', 'Wind'],
+            'price_multiplier': lambda: random.uniform(4.0, 6.0),
+            'effect_desc': 'Power plants frozen, turbines iced over'
+        },
+        'heat wave|extreme heat': {
+            'affects': ['Traditional', 'Load Center'],
+            'price_multiplier': lambda: random.uniform(1.5, 2.5),
+            'effect_desc': 'AC demand surges, thermal plants stressed'
+        },
+        'drought': {
+            'affects': ['Traditional'],
+            'price_multiplier': lambda: random.uniform(1.8, 2.8),
+            'effect_desc': 'Cooling water shortage for power plants'
+        },
+        'wildfire|fire': {
+            'affects': ['Solar', 'Wind', 'Traditional'],
+            'price_multiplier': lambda: random.uniform(2.2, 3.8),
+            'effect_desc': 'Transmission lines down, plants evacuated'
+        },
+        
+        # Grid/Infrastructure issues  
+        'cyberattack|cyber|hack': {
+            'affects': ['Load Center', 'Traditional'],
+            'price_multiplier': lambda: random.uniform(3.5, 5.5),
+            'effect_desc': 'Grid control systems compromised'
+        },
+        'transformer|substation|transmission': {
+            'affects': ['Load Zone', 'Load Center'],
+            'price_multiplier': lambda: random.uniform(2.8, 4.2),
+            'effect_desc': 'Critical transmission infrastructure failed'
+        },
+        'blackout|outage|grid failure': {
+            'affects': ['Load Center', 'Traditional'],
+            'price_multiplier': lambda: random.uniform(4.0, 7.0),
+            'effect_desc': 'Cascading grid failures, emergency response'
+        },
+        
+        # Economic/Market events
+        'gas shortage|natural gas': {
+            'affects': ['Traditional', 'Peaker'],
+            'price_multiplier': lambda: random.uniform(3.0, 5.0),
+            'effect_desc': 'Natural gas supply disrupted, backup power activated'
+        },
+        'oil spill|pipeline': {
+            'affects': ['Traditional'],
+            'price_multiplier': lambda: random.uniform(1.8, 2.5),
+            'effect_desc': 'Energy transport disrupted'
+        },
+        
+        # Positive scenarios (reduce prices)
+        'perfect weather|ideal conditions': {
+            'affects': ['Wind', 'Solar'],
+            'price_multiplier': lambda: random.uniform(0.2, 0.6),
+            'effect_desc': 'Optimal renewable generation, prices plummet'
+        },
+        'new solar|solar expansion': {
+            'affects': ['Solar', 'Load Center'],
+            'price_multiplier': lambda: random.uniform(0.3, 0.7),
+            'effect_desc': 'Massive solar capacity online, surplus power'
+        },
+        'wind boom|high wind': {
+            'affects': ['Wind'],
+            'price_multiplier': lambda: random.uniform(0.1, 0.4),
+            'effect_desc': 'Record wind generation flooding market'
+        },
+        
+        # Weird/Fun scenarios
+        'alien|ufo|extraterrestrial': {
+            'affects': ['Load Center', 'Traditional'],
+            'price_multiplier': lambda: random.uniform(5.0, 10.0),
+            'effect_desc': 'Mysterious energy drain across major cities'
+        },
+        'zombie|apocalypse': {
+            'affects': ['Load Center', 'Traditional'],
+            'price_multiplier': lambda: random.uniform(0.1, 0.3),
+            'effect_desc': 'Demand collapsed, only essential systems running'
+        },
+        'bitcoin|crypto|mining': {
+            'affects': ['Load Center', 'Traditional'],
+            'price_multiplier': lambda: random.uniform(2.0, 3.5),
+            'effect_desc': 'Massive crypto mining operations demand surge'
+        },
+        'tesla|electric car': {
+            'affects': ['Load Center', 'Battery Storage'],
+            'price_multiplier': lambda: random.uniform(1.5, 2.2),
+            'effect_desc': 'Mass EV charging spikes grid demand'
+        },
+        'earthquake|seismic': {
+            'affects': ['Traditional', 'Load Center'],
+            'price_multiplier': lambda: random.uniform(2.5, 4.0),
+            'effect_desc': 'Seismic damage to power infrastructure'
+        },
+        'tsunami': {
+            'affects': ['Traditional', 'Load Center'],
+            'price_multiplier': lambda: random.uniform(4.0, 8.0),
+            'effect_desc': 'Coastal power plants flooded, emergency grid activation'
+        }
+    }
+    
+    # Find matching scenario effects
+    matched_effects = []
+    for pattern, effect_info in scenario_effects.items():
+        if re.search(pattern, scenario_lower):
+            matched_effects.append(effect_info)
+    
+    # If no specific match, create a generic high-impact effect
+    if not matched_effects:
+        matched_effects = [{
+            'affects': ['Traditional', 'Load Center'],
+            'price_multiplier': lambda: random.uniform(1.5, 3.0),
+            'effect_desc': 'Market disruption affecting energy prices'
+        }]
+    
+    # Apply effects to matching locations
+    for effect_info in matched_effects:
+        affected_types = effect_info['affects']
+        multiplier = effect_info['price_multiplier']()
+        
+        affected_locations = [item for item in modified_data if item['type'] in affected_types]
+        
+        # Affect 60-80% of matching locations
+        num_to_affect = max(1, int(len(affected_locations) * random.uniform(0.6, 0.8)))
+        locations_to_affect = random.sample(affected_locations, min(num_to_affect, len(affected_locations)))
+        
+        for location in locations_to_affect:
+            old_price = location['price_mwh']
+            new_price = round(old_price * multiplier, 2)
+            location['price_mwh'] = max(0.01, new_price)  # Ensure price stays positive
+            
+            # Update price category
+            if location['price_mwh'] > 100:
+                location['price_category'] = 'critical'
+            elif location['price_mwh'] > 50:
+                location['price_category'] = 'high'
+            elif location['price_mwh'] > 25:
+                location['price_category'] = 'medium'
+            else:
+                location['price_category'] = 'low'
+            
+            # Add scenario effect indicator
+            location['scenario_affected'] = True
+            location['scenario_effect'] = effect_info['effect_desc']
+            
+            effects_applied.append({
+                'location': location['name'],
+                'old_price': old_price,
+                'new_price': location['price_mwh'],
+                'change_percent': round(((location['price_mwh'] - old_price) / old_price) * 100, 1),
+                'effect': effect_info['effect_desc']
+            })
+    
+    return modified_data, effects_applied
+
 @app.route('/api/scenario-analysis', methods=['POST'])
 def analyze_scenario():
     """
-    Analyze a hypothetical scenario and generate realistic energy market notifications
+    Analyze a hypothetical scenario and generate multiple realistic energy market notifications
+    with actual visual effects on the energy grid
     """
     try:
         data = request.get_json()
@@ -449,58 +640,63 @@ def analyze_scenario():
                 'success': False,
                 'error': 'No scenario provided'
             }), 400
-            
-        # Check if we have a valid AI client
-        if not OPENROUTER_API_KEY or ai_client is None:
-            return jsonify({
-                'success': False,
-                'error': 'AI service not configured. Please set OPENROUTER_API_KEY in environment variables.',
-                'instructions': 'Get a free API key at https://openrouter.ai/keys'
-            }), 503
         
+        # Apply scenario effects to the data first
+        modified_data, effects_applied = apply_scenario_effects(scenario, current_data)
+        
+        # Check if we have a valid AI client for generating notifications
+        if not OPENROUTER_API_KEY or ai_client is None:
+            # Return basic effects without AI-generated notifications
+            return jsonify({
+                'success': True,
+                'notifications': [{
+                    'message': f"Scenario '{scenario}' applied to {len(effects_applied)} locations",
+                    'type': 'info',
+                    'region': 'Texas Grid',
+                    'impact': 'Medium'
+                }],
+                'modified_data': modified_data,
+                'effects_summary': effects_applied[:5]  # Show first 5 effects
+            })
+            
         logger.info(f"Processing AI scenario analysis: {scenario}")
         
-        # Create a comprehensive prompt for realistic scenario analysis
-        prompt = f"""You are an energy market analyst specializing in Texas ERCOT grid operations. 
+        # Create a more detailed and varied prompt for multiple notifications
+        effects_summary = json.dumps(effects_applied[:8], indent=2) if effects_applied else "Effects being calculated..."
+        
+        prompt = "You are an energy market analyst for Texas ERCOT. A scenario has occurred: \"" + scenario + "\"\n\n"
+        prompt += "CURRENT IMPACTS DETECTED:\n" + effects_summary + "\n\n"
+        prompt += "Generate 2-4 different breaking news alerts about this scenario's impact on Texas energy markets.\n\n"
+        prompt += "REQUIREMENTS FOR EACH ALERT:\n"
+        prompt += "- Make each alert UNIQUE and focus on different aspects (prices, infrastructure, regions, specific facilities)\n"
+        prompt += "- Include SPECIFIC numbers, percentages, or location names from Texas\n"
+        prompt += "- Vary the tone and focus: some technical, some urgent, some economic impact\n"
+        prompt += "- Each should be 80-150 characters\n"
+        prompt += "- Use realistic Texas energy locations: Houston, Dallas, Lubbock, San Antonio, Midland, etc.\n"
+        prompt += "- Don't repeat the same percentage or impact - make each distinct\n\n"
+        prompt += "ALERT VARIETY EXAMPLES:\n"
+        prompt += "- Infrastructure: \"Lubbock wind farms report 85% capacity loss, ERCOT activates emergency reserves\"\n"
+        prompt += "- Market: \"Houston energy hub sees 340% price surge as demand outstrips supply\"\n"
+        prompt += "- Regional: \"West Texas grid operators scramble as 12 substations go offline\"\n"
+        prompt += "- Technical: \"ERCOT issues EEA Level 2, rotating outages possible in Dallas metro\"\n\n"
+        prompt += "Return ONLY a JSON array in this format: [\"First alert text\", \"Second alert text\", \"Third alert text\"]"
 
-SCENARIO: {scenario}
-
-CURRENT ENERGY DATA CONTEXT:
-{json.dumps(current_data[:10], indent=2) if current_data else "No current data available"}
-
-Generate ONE realistic breaking news alert about how this scenario would impact West Texas energy markets. 
-
-REQUIREMENTS:
-- Write like a professional energy news ticker/alert
-- Include specific percentage changes, locations, or infrastructure impacts
-- Focus on realistic consequences (wind farms, solar installations, transmission lines, pricing)
-- Keep it under 100 characters for a news ticker format
-- Be authoritative and specific
-- Don't use phrases like "could" or "might" - state impacts as if they're happening
-
-EXAMPLES OF GOOD ALERTS:
-- "West Texas wind farms see 250% surge in production due to increased wind"
-- "ERCOT issues grid emergency as 3 major transmission lines fail in Permian Basin"
-- "Solar installations in Lubbock offline after hailstorm, prices spike 40%"
-
-Return ONLY the alert message, nothing else."""
-
-        # Call the AI model
+        # Call the AI model with higher temperature for more variation
         try:
             response = ai_client.chat.completions.create(
                 model="meta-llama/llama-3.1-8b-instruct:free",
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are a professional energy market news analyst. Generate realistic, specific breaking news alerts about energy market impacts."
+                        "content": "You are a professional energy market news analyst. Generate varied, specific breaking news alerts about energy market impacts. Each alert should be unique and focus on different aspects."
                     },
                     {
                         "role": "user",
                         "content": prompt
                     }
                 ],
-                max_tokens=150,
-                temperature=0.7,
+                max_tokens=400,
+                temperature=0.9,  # Higher temperature for more variation
                 extra_headers={
                     "HTTP-Referer": "http://localhost:3000",
                     "X-Title": "MARA Energy Analysis"
@@ -517,23 +713,57 @@ Return ONLY the alert message, nothing else."""
             else:
                 raise ai_error
         
-        ai_message = response.choices[0].message.content.strip()
+        ai_response = response.choices[0].message.content.strip()
         
-        # Clean up the message (remove quotes if present)
-        if ai_message.startswith('"') and ai_message.endswith('"'):
-            ai_message = ai_message[1:-1]
-            
-        # Create the notification
-        notification = {
-            'message': ai_message,
-            'type': 'alert',
-            'region': 'West Texas',
-            'impact': 'High'
-        }
+        # Try to parse as JSON, fallback to creating alerts from text
+        notifications = []
+        try:
+            parsed_response = json.loads(ai_response)
+            if isinstance(parsed_response, list):
+                for item in parsed_response:
+                    if isinstance(item, str) and len(item) > 20:
+                        notifications.append({
+                            'message': item,
+                            'type': 'alert',
+                            'region': 'Texas',
+                            'impact': 'High'
+                        })
+                    elif isinstance(item, dict) and 'message' in item:
+                        notifications.append({
+                            'message': item['message'],
+                            'type': 'alert',
+                            'region': 'Texas',
+                            'impact': 'High'
+                        })
+        except:
+            # Fallback: split by lines and create notifications
+            lines = [line.strip() for line in ai_response.split('\n') if line.strip()]
+            for line in lines[:4]:  # Max 4 notifications
+                # Clean up the line
+                clean_line = line.strip('"').strip("'").strip('-').strip('*').strip()
+                if len(clean_line) > 20:  # Only include substantial alerts
+                    notifications.append({
+                        'message': clean_line,
+                        'type': 'alert',
+                        'region': 'Texas',
+                        'impact': 'High'
+                    })
+        
+        # Ensure we have at least one notification
+        if not notifications:
+            notifications = [{
+                'message': f"Market disruption from {scenario} affects Texas energy grid",
+                'type': 'alert',
+                'region': 'Texas',
+                'impact': 'Medium'
+            }]
         
         return jsonify({
             'success': True,
-            'notification': notification
+            'notifications': notifications,
+            'modified_data': modified_data,
+            'effects_summary': effects_applied[:8],  # Show first 8 effects
+            'total_affected_locations': len(effects_applied)
         })
         
     except Exception as e:

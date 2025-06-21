@@ -55,9 +55,10 @@ function App() {
   const [error, setError] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
-  const [notification, setNotification] = useState(null);
+  const [notifications, setNotifications] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isProcessingScenario, setIsProcessingScenario] = useState(false);
+  const [scenarioEffectsActive, setScenarioEffectsActive] = useState(false);
 
   const mapRef = useRef();
 
@@ -123,7 +124,8 @@ function App() {
         0, 6,
         50, 10,
         100, 14,
-        200, 18
+        200, 18,
+        500, 22
       ],
       'circle-color': [
         'interpolate',
@@ -133,11 +135,51 @@ function App() {
         25, '#eab308',
         50, '#f97316',
         100, '#ef4444',
-        200, '#991b1b'
+        200, '#991b1b',
+        500, '#7c2d12'
       ],
+      'circle-stroke-width': [
+        'case',
+        ['==', ['get', 'scenario_affected'], true],
+        4, // Thicker stroke for affected locations
+        2
+      ],
+      'circle-stroke-color': [
+        'case',
+        ['==', ['get', 'scenario_affected'], true],
+        '#fbbf24', // Gold stroke for affected locations
+        '#ffffff'
+      ],
+      'circle-opacity': [
+        'case',
+        ['==', ['get', 'scenario_affected'], true],
+        1.0, // Full opacity for affected locations
+        0.8
+      ]
+    }
+  };
+
+  // Scenario effects layer (pulsing animation for affected locations)
+  const scenarioEffectsLayer = {
+    id: 'scenario-effects',
+    type: 'circle',
+    filter: ['==', ['get', 'scenario_affected'], true],
+    paint: {
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['get', 'price_mwh'],
+        0, 15,
+        50, 20,
+        100, 25,
+        200, 30,
+        500, 35
+      ],
+      'circle-color': '#fbbf24',
+      'circle-opacity': 0.3,
       'circle-stroke-width': 2,
-      'circle-stroke-color': '#ffffff',
-      'circle-opacity': 0.8
+      'circle-stroke-color': '#f59e0b',
+      'circle-stroke-opacity': 0.6
     }
   };
 
@@ -229,21 +271,36 @@ function App() {
         current_data: energyData
       });
 
-      if (response.data.success && response.data.notification) {
-        // Show single notification with news-style formatting
-        const newNotification = {
-          id: Date.now(),
-          ...response.data.notification,
-          timestamp: new Date()
-        };
+      if (response.data.success) {
+        // Handle multiple notifications
+        if (response.data.notifications && Array.isArray(response.data.notifications)) {
+          const newNotifications = response.data.notifications.map((notif, index) => ({
+            id: Date.now() + index,
+            ...notif,
+            timestamp: new Date()
+          }));
 
-        setNotification(newNotification);
+          setNotifications(newNotifications);
+
+          // Auto-dismiss notifications after 20 seconds
+          setTimeout(() => {
+            setNotifications([]);
+          }, 20000);
+        }
+
+        // Update energy data with scenario effects if available
+        if (response.data.modified_data) {
+          setEnergyData(response.data.modified_data);
+          setScenarioEffectsActive(true);
+
+          // Reset to original data after 2 minutes
+          setTimeout(() => {
+            fetchData();
+            setScenarioEffectsActive(false);
+          }, 120000);
+        }
+
         setChatInput('');
-
-        // Auto-dismiss after 15 seconds
-        setTimeout(() => {
-          setNotification(null);
-        }, 15000);
       }
     } catch (error) {
       console.error('Error processing scenario:', error);
@@ -253,9 +310,14 @@ function App() {
     }
   };
 
-  // Remove notification
-  const removeNotification = () => {
-    setNotification(null);
+  // Remove specific notification
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  // Clear all notifications
+  const clearAllNotifications = () => {
+    setNotifications([]);
   };
 
   // Check if Mapbox token is configured
@@ -302,28 +364,45 @@ function App() {
 
   return (
     <div className="h-screen bg-gray-900 relative overflow-hidden">
-      {/* Breaking News Style Notification - Top Left */}
-      {notification && (
-        <div className="absolute top-4 left-4 z-50 max-w-md animate-slide-down">
-          <div className="bg-red-600 text-white px-4 py-2 shadow-2xl border-l-4 border-red-800">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                <span className="text-xs font-bold tracking-wider">
-                  {notification.timestamp.toLocaleTimeString()} | BREAKING ENERGY ALERT
-                </span>
-              </div>
+      {/* Multiple Breaking News Style Notifications - Top Left */}
+      {notifications.length > 0 && (
+        <div className="absolute top-4 left-4 z-50 max-w-md space-y-3">
+          {/* Clear All Button */}
+          {notifications.length > 1 && (
+            <div className="flex justify-end">
               <button
-                onClick={removeNotification}
-                className="text-white hover:text-red-200 text-lg font-bold"
+                onClick={clearAllNotifications}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
               >
-                ×
+                Clear All ({notifications.length})
               </button>
             </div>
-            <div className="mt-2 text-sm font-medium leading-relaxed">
-              {notification.message}
+          )}
+
+          {/* Notifications */}
+          {notifications.map((notification, index) => (
+            <div key={notification.id} className="animate-slide-down" style={{ animationDelay: `${index * 200}ms` }}>
+              <div className="bg-red-600 text-white px-4 py-2 shadow-2xl border-l-4 border-red-800">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                    <span className="text-xs font-bold tracking-wider">
+                      {notification.timestamp.toLocaleTimeString()} | BREAKING ENERGY ALERT
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => removeNotification(notification.id)}
+                    className="text-white hover:text-red-200 text-lg font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="mt-2 text-sm font-medium leading-relaxed">
+                  {notification.message}
+                </div>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       )}
 
@@ -333,7 +412,7 @@ function App() {
           ref={mapRef}
           {...viewState}
           onMove={evt => setViewState(evt.viewState)}
-          mapStyle="mapbox://styles/mapbox/outdoors-v12"
+          mapStyle="mapbox://styles/mapbox/dark-v11"
           mapboxAccessToken={MAPBOX_TOKEN}
           onClick={onMapClick}
           interactiveLayerIds={['energy-points']}
@@ -343,7 +422,7 @@ function App() {
           <Source
             id="mapbox-dem"
             type="raster-dem"
-            url="mapbox://mapbox.mapbox-terrain-dem-v1"
+            url="mapbox://styles/mapbox/outdoors-v12"
             tileSize={512}
             maxzoom={14}
           />
@@ -352,6 +431,7 @@ function App() {
           <Source id="energy-data" type="geojson" data={energyLocationsGeoJSON}>
             <Layer {...heatmapLayer} />
             <Layer {...energyPointsLayer} />
+            {scenarioEffectsActive && <Layer {...scenarioEffectsLayer} />}
           </Source>
 
           {/* Location Popup */}
@@ -365,9 +445,24 @@ function App() {
               className="custom-popup"
             >
               <div className="p-4">
-                <h3 className="font-bold text-lg text-gray-800 mb-3">
-                  {selectedLocation.name}
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-lg text-gray-800">
+                    {selectedLocation.name}
+                  </h3>
+                  {selectedLocation.scenario_affected && (
+                    <span className="bg-yellow-500 text-yellow-900 px-2 py-1 rounded text-xs font-bold animate-pulse">
+                      SCENARIO ACTIVE
+                    </span>
+                  )}
+                </div>
+
+                {selectedLocation.scenario_affected && (
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-3">
+                    <div className="text-sm text-yellow-800">
+                      <strong>Scenario Effect:</strong> {selectedLocation.scenario_effect}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between items-center">
@@ -434,13 +529,35 @@ function App() {
           )}
         </Map>
 
+        {/* Scenario Status Indicator - Top Right */}
+        {scenarioEffectsActive && (
+          <div className="absolute top-4 right-4 z-50">
+            <div className="bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg border border-yellow-500">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                <span className="text-sm font-bold">SCENARIO SIMULATION ACTIVE</span>
+              </div>
+              <div className="text-xs opacity-90 mt-1">
+                Effects will reset in 2 minutes
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* AI Scenario Chat Interface - Bottom */}
         <div className="absolute bottom-4 left-4 right-4 z-40">
           <div className="bg-gray-800 bg-opacity-95 backdrop-blur-sm rounded-lg shadow-2xl border border-gray-700">
             <div className="p-4">
-              <div className="flex items-center space-x-2 mb-3">
-                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-white font-semibold text-sm">AI Scenario Analysis</span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="text-white font-semibold text-sm">Simulate Anything...</span>
+                </div>
+                {scenarioEffectsActive && (
+                  <span className="text-yellow-400 text-xs font-bold">
+                    ⚡ SIMULATION RUNNING
+                  </span>
+                )}
               </div>
 
               <form onSubmit={handleScenarioSubmit} className="flex space-x-3">
@@ -448,7 +565,7 @@ function App() {
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Ask: 'What would happen if a hurricane hits the Gulf Coast?'"
+                  placeholder="Try: 'What would happen if a hurricane hits the Gulf Coast?'"
                   className="flex-1 bg-gray-700 text-white px-4 py-3 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none placeholder-gray-400"
                   disabled={isProcessingScenario}
                 />

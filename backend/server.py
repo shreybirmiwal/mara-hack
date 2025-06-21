@@ -59,9 +59,8 @@ def fetch_and_cache_data():
     try:
         logger.info("Fetching fresh data from GridStatus API...")
         
-        # Get date range (last 2 days for recent data - reduced to avoid rate limits)
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=2)
+        # Get just today's date for the most recent data point
+        today = datetime.now().strftime("%Y-%m-%d")
         
         # Fetch data from GridStatus API with retry logic
         max_retries = 3
@@ -69,8 +68,8 @@ def fetch_and_cache_data():
             try:
                 df = client.get_dataset(
                     dataset="ercot_spp_real_time_15_min",
-                    start=start_date.strftime("%Y-%m-%d"),
-                    end=end_date.strftime("%Y-%m-%d"),
+                    start=today,
+                    end=today,
                     timezone="market",
                 )
                 break
@@ -86,9 +85,14 @@ def fetch_and_cache_data():
         # Process and enrich data with location information
         processed_data = []
         
-        # Get latest data for each location
+        # Get the most recent data point for each location
         if not df.empty:
-            latest_data = df.groupby('location').last().reset_index()
+            # Get the latest timestamp across all data
+            latest_timestamp = df['interval_end_local'].max()
+            logger.info(f"Latest data timestamp: {latest_timestamp}")
+            
+            # Filter to only the most recent data points
+            latest_data = df[df['interval_end_local'] == latest_timestamp]
             
             for _, row in latest_data.iterrows():
                 location_code = row['location']
@@ -115,25 +119,41 @@ def fetch_and_cache_data():
         # Sort by price for better visualization
         processed_data.sort(key=lambda x: x['price_mwh'], reverse=True)
         
-        # Calculate statistics
-        stats = {
-            'total_records': len(df),
-            'locations_count': df['location'].nunique() if not df.empty else 0,
-            'avg_price': round(df['spp'].mean(), 2) if not df.empty and 'spp' in df.columns else 0,
-            'max_price': round(df['spp'].max(), 2) if not df.empty and 'spp' in df.columns else 0,
-            'min_price': round(df['spp'].min(), 2) if not df.empty and 'spp' in df.columns else 0,
-            'data_range': {
-                'start': start_date.strftime('%Y-%m-%d'),
-                'end': end_date.strftime('%Y-%m-%d')
+        # Calculate statistics from the single moment
+        if processed_data:
+            prices = [d['price_mwh'] for d in processed_data]
+            stats = {
+                'total_records': len(processed_data),
+                'locations_count': len(processed_data),
+                'avg_price': round(sum(prices) / len(prices), 2),
+                'max_price': round(max(prices), 2),
+                'min_price': round(min(prices), 2),
+                'data_timestamp': processed_data[0]['timestamp'] if processed_data else None,
+                'data_range': {
+                    'start': today,
+                    'end': today
+                }
             }
-        }
+        else:
+            stats = {
+                'total_records': 0,
+                'locations_count': 0,
+                'avg_price': 0,
+                'max_price': 0,
+                'min_price': 0,
+                'data_timestamp': None,
+                'data_range': {
+                    'start': today,
+                    'end': today
+                }
+            }
         
         # Update cache
         _cache['energy_data'] = processed_data
         _cache['energy_stats'] = stats
         _cache['last_fetch_time'] = time.time()
         
-        logger.info(f"Cached {len(processed_data)} locations")
+        logger.info(f"Cached {len(processed_data)} locations for timestamp: {stats.get('data_timestamp', 'N/A')}")
         return True
         
     except Exception as e:

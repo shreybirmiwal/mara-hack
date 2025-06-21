@@ -1,0 +1,207 @@
+/* Mapbox GL styles */
+.mapboxgl-popup {
+    max-width: 300px;
+}
+
+.mapboxgl-popup-content {
+    background: #1f2937 !important;
+    color: white !important;
+    border-radius: 8px !important;
+    padding: 0 !important;
+}
+
+.mapboxgl-popup-close-button {
+    color: #9ca3af !important;
+    font-size: 18px !important;
+    padding: 4px !important;
+}
+
+.mapboxgl-popup-close-button:hover {
+    background: #374151 !important;
+    color: white !important;
+}
+
+.mapboxgl-popup-tip {
+    border-top-color: #1f2937 !important;
+}
+
+/* Custom scrollbar for sidebar */
+.overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+    background: #374151;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+    background: #6b7280;
+    border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Map container */
+.map-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .w-80 {
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        height: 40%;
+    }
+
+    .flex-1 {
+        width: 100%;
+    }
+
+    .absolute.bottom-4.left-4 {
+        bottom: 45%;
+        left: 4px;
+    }
+}
+
+/* Loading states */
+.loading-shimmer {
+    background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Interactive elements */
+.interactive-point {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.interactive-point:hover {
+    transform: scale(1.1);
+}
+
+/* Status indicators */
+.status-indicator {
+    position: relative;
+}
+
+.status-indicator::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Tooltip styles */
+.tooltip {
+    position: relative;
+}
+
+.tooltip:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
+/* Energy type colors */
+.energy-solar {
+    color: #fbbf24;
+}
+
+.energy-wind {
+    color: #34d399;
+}
+
+.energy-traditional {
+    color: #f87171;
+}
+
+.energy-storage {
+    color: #a78bfa;
+}
+
+.energy-peaker {
+    color: #fb923c;
+}
+
+/* Price category backgrounds */
+.price-very-high {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.price-high {
+    background: linear-gradient(135deg, #ea580c, #c2410c);
+}
+
+.price-medium {
+    background: linear-gradient(135deg, #ca8a04, #a16207);
+}
+
+.price-low {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+.price-very-low {
+    background: linear-gradient(135deg, #059669, #047857);
+}

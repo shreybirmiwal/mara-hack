@@ -1,7 +1,8 @@
 import React from 'react';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import EventSimulator from './EventSimulator';
 
-const Sidebar = ({ siteData }) => {
+const Sidebar = ({ siteData, onDataUpdate }) => {
   // Generate mock historical data for charts
   const generateChartData = (baseValue, volatility = 0.1) => {
     const data = [];
@@ -121,6 +122,11 @@ const Sidebar = ({ siteData }) => {
             </LineChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* Event Simulator */}
+      <div className="sidebar-section">
+        <EventSimulator siteData={siteData} onDataUpdate={onDataUpdate} />
       </div>
 
       {/* Performance Metrics */}

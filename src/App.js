@@ -8,6 +8,10 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const handleDataUpdate = (newData) => {
+    setSiteData(newData);
+  };
+
   useEffect(() => {
     // Load site data from JSON file
     const loadSiteData = async () => {
@@ -117,7 +121,7 @@ function App() {
           </div>
         </div>
         
-        <Sidebar siteData={siteData} />
+        <Sidebar siteData={siteData} onDataUpdate={handleDataUpdate} />
       </div>
     </div>
   );

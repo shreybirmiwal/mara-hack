@@ -65,16 +65,27 @@ BASE_PRICES = {
 
 # Geographic regions and major cities for scenario location detection
 GEOGRAPHIC_REGIONS = {
-    'houston': {'lat': 29.7604, 'lng': -95.3698, 'radius_km': 150, 'keywords': ['houston', 'gulf coast', 'southeast texas', 'refineries', 'coast']},
-    'dallas': {'lat': 32.7767, 'lng': -96.7970, 'radius_km': 120, 'keywords': ['dallas', 'fort worth', 'north texas', 'dfw']},
-    'san_antonio': {'lat': 29.4241, 'lng': -98.4936, 'radius_km': 100, 'keywords': ['san antonio', 'south texas', 'alamo city']},
-    'austin': {'lat': 30.2672, 'lng': -97.7431, 'radius_km': 80, 'keywords': ['austin', 'central texas', 'capital']},
-    'lubbock': {'lat': 33.5779, 'lng': -101.8552, 'radius_km': 200, 'keywords': ['lubbock', 'west texas', 'panhandle']},
-    'el_paso': {'lat': 31.7619, 'lng': -106.4850, 'radius_km': 150, 'keywords': ['el paso', 'far west texas', 'west texas']},
-    'corpus_christi': {'lat': 27.8006, 'lng': -97.3964, 'radius_km': 100, 'keywords': ['corpus christi', 'coast', 'coastal texas']},
-    'amarillo': {'lat': 35.2220, 'lng': -101.8313, 'radius_km': 150, 'keywords': ['amarillo', 'panhandle', 'northern texas']},
-    'beaumont': {'lat': 30.0860, 'lng': -94.1018, 'radius_km': 80, 'keywords': ['beaumont', 'golden triangle', 'refinery']},
-    'midland': {'lat': 31.9974, 'lng': -102.0779, 'radius_km': 120, 'keywords': ['midland', 'permian basin', 'oil country']}
+    'houston': {'lat': 29.7604, 'lng': -95.3698, 'radius_km': 150, 'keywords': ['houston', 'gulf coast', 'southeast texas', 'refineries', 'coast', 'galveston', 'baytown', 'pasadena', 'katy', 'sugar land', 'woodlands']},
+    'dallas': {'lat': 32.7767, 'lng': -96.7970, 'radius_km': 120, 'keywords': ['dallas', 'fort worth', 'north texas', 'dfw', 'arlington', 'plano', 'garland', 'irving', 'mesquite', 'richardson', 'carrollton']},
+    'san_antonio': {'lat': 29.4241, 'lng': -98.4936, 'radius_km': 100, 'keywords': ['san antonio', 'south texas', 'alamo city', 'bexar county', 'new braunfels', 'seguin', 'schertz']},
+    'austin': {'lat': 30.2672, 'lng': -97.7431, 'radius_km': 80, 'keywords': ['austin', 'central texas', 'capital', 'round rock', 'cedar park', 'pflugerville', 'georgetown', 'leander']},
+    'lubbock': {'lat': 33.5779, 'lng': -101.8552, 'radius_km': 200, 'keywords': ['lubbock', 'west texas', 'panhandle', 'levelland', 'plainview', 'south plains']},
+    'el_paso': {'lat': 31.7619, 'lng': -106.4850, 'radius_km': 150, 'keywords': ['el paso', 'far west texas', 'west texas', 'border', 'las cruces', 'juarez']},
+    'corpus_christi': {'lat': 27.8006, 'lng': -97.3964, 'radius_km': 100, 'keywords': ['corpus christi', 'coast', 'coastal texas', 'coastal bend', 'padre island', 'rockport']},
+    'amarillo': {'lat': 35.2220, 'lng': -101.8313, 'radius_km': 150, 'keywords': ['amarillo', 'panhandle', 'northern texas', 'canyon', 'borger']},
+    'beaumont': {'lat': 30.0860, 'lng': -94.1018, 'radius_km': 80, 'keywords': ['beaumont', 'golden triangle', 'refinery', 'port arthur', 'orange', 'vidor']},
+    'midland': {'lat': 31.9974, 'lng': -102.0779, 'radius_km': 120, 'keywords': ['midland', 'permian basin', 'oil country', 'odessa', 'big spring', 'andrews']},
+    'brownsville': {'lat': 25.9018, 'lng': -97.4975, 'radius_km': 100, 'keywords': ['brownsville', 'rio grande valley', 'border', 'mcallen', 'harlingen', 'edinburg', 'laredo']},
+    'tyler': {'lat': 32.3513, 'lng': -95.3011, 'radius_km': 100, 'keywords': ['tyler', 'east texas', 'longview', 'marshall', 'carthage', 'piney woods']},
+    'waco': {'lat': 31.5493, 'lng': -97.1467, 'radius_km': 80, 'keywords': ['waco', 'central texas', 'killeen', 'temple', 'belton']},
+    'abilene': {'lat': 32.4487, 'lng': -99.7331, 'radius_km': 100, 'keywords': ['abilene', 'west central texas', 'sweetwater', 'big country']},
+    'galveston': {'lat': 29.3013, 'lng': -94.7977, 'radius_km': 50, 'keywords': ['galveston', 'island', 'gulf', 'port', 'hurricane', 'storm surge']},
+    'permian_basin': {'lat': 31.8457, 'lng': -102.3676, 'radius_km': 200, 'keywords': ['permian', 'basin', 'oil field', 'fracking', 'drilling', 'petroleum']},
+    'panhandle': {'lat': 35.0000, 'lng': -101.5000, 'radius_km': 300, 'keywords': ['panhandle', 'northern plains', 'wind country', 'wheat belt']},
+    'east_texas': {'lat': 32.0000, 'lng': -94.5000, 'radius_km': 200, 'keywords': ['east texas', 'piney woods', 'forestry', 'timber', 'nacogdoches']},
+    'south_texas': {'lat': 27.5000, 'lng': -98.5000, 'radius_km': 250, 'keywords': ['south texas', 'rio grande', 'valley', 'border region']},
+    'central_texas': {'lat': 30.5000, 'lng': -97.5000, 'radius_km': 150, 'keywords': ['central texas', 'hill country', 'heart of texas']},
+    'west_texas': {'lat': 31.5000, 'lng': -102.0000, 'radius_km': 300, 'keywords': ['west texas', 'desert', 'big bend', 'trans pecos']}
 }
 
 def calculate_distance_km(lat1, lng1, lat2, lng2):
@@ -100,37 +111,50 @@ def find_affected_locations_by_geography(scenario, all_locations):
     """
     scenario_lower = scenario.lower()
     affected_locations = []
+    matched_regions = []
     
     # Check if any geographic regions are mentioned
     for region_name, region_info in GEOGRAPHIC_REGIONS.items():
         for keyword in region_info['keywords']:
             if keyword in scenario_lower:
-                # Find all locations within radius of this region
-                region_lat = region_info['lat']
-                region_lng = region_info['lng']
-                radius_km = region_info['radius_km']
-                
-                for location in all_locations:
-                    distance = calculate_distance_km(
-                        region_lat, region_lng,
-                        location['lat'], location['lng']
-                    )
-                    
-                    if distance <= radius_km:
-                        location['distance_from_impact'] = round(distance, 1)
-                        location['impact_region'] = region_name
-                        affected_locations.append(location)
-                        # Debug logging
-                        logger.info(f"Found affected location: {location.get('name', 'Unknown')} at {distance:.1f}km from {region_name}")
-                
-                # If we found a geographic match, return those locations
-                if affected_locations:
-                    # Sort by distance (closest locations most affected)
-                    affected_locations.sort(key=lambda x: x['distance_from_impact'])
-                    return affected_locations
+                logger.info(f"Geographic match found: '{keyword}' in scenario '{scenario}' -> region '{region_name}'")
+                matched_regions.append((region_name, region_info))
+                break  # Found a match for this region, no need to check other keywords
     
-    # If no geographic region found, return empty list for type-based selection
-    return []
+    # Process all matched regions
+    for region_name, region_info in matched_regions:
+        region_lat = region_info['lat']
+        region_lng = region_info['lng']
+        radius_km = region_info['radius_km']
+        
+        for location in all_locations:
+            distance = calculate_distance_km(
+                region_lat, region_lng,
+                location['lat'], location['lng']
+            )
+            
+            if distance <= radius_km:
+                # Check if this location is already added from another region
+                existing_location = next((loc for loc in affected_locations if loc['location_code'] == location['location_code']), None)
+                if not existing_location:
+                    location_copy = location.copy()
+                    location_copy['distance_from_impact'] = round(distance, 1)
+                    location_copy['impact_region'] = region_name
+                    affected_locations.append(location_copy)
+                    logger.info(f"Found affected location: {location.get('name', 'Unknown')} at {distance:.1f}km from {region_name}")
+                elif distance < existing_location['distance_from_impact']:
+                    # Update with closer distance
+                    existing_location['distance_from_impact'] = round(distance, 1)
+                    existing_location['impact_region'] = region_name
+    
+    # Sort by distance (closest locations most affected)
+    if affected_locations:
+        affected_locations.sort(key=lambda x: x['distance_from_impact'])
+        logger.info(f"Geographic selection complete: {len(affected_locations)} locations found")
+    else:
+        logger.info(f"No geographic matches found for scenario: {scenario}")
+    
+    return affected_locations
 
 # Texas location data for ERCOT nodes (approximate coordinates)
 LOCATION_DATA = {
@@ -141,14 +165,14 @@ LOCATION_DATA = {
     'HB_WEST': {'lat': 31.5804, 'lng': -99.5805, 'name': 'West Hub', 'type': 'Load Center', 'capacity_mw': 1500, 'region': 'West Texas'},
     
     # Solar Installations
-    'ZIER_SLR_ALL': {'lat': 32.7767, 'lng': -96.7970, 'name': 'Dallas Solar', 'type': 'Solar', 'capacity_mw': 180, 'region': 'North Texas'},
+    'ZIER_SLR_ALL': {'lat': 32.7867, 'lng': -96.8070, 'name': 'Dallas Solar', 'type': 'Solar', 'capacity_mw': 180, 'region': 'North Texas'},
     'LAMESASLR_G': {'lat': 32.7373, 'lng': -101.9507, 'name': 'Lamesa Solar', 'type': 'Solar', 'capacity_mw': 200, 'region': 'West Texas'},
     'PECOS_SOLAR': {'lat': 31.4226, 'lng': -103.4933, 'name': 'Pecos Solar', 'type': 'Solar', 'capacity_mw': 250, 'region': 'West Texas'},
     'AUSTIN_SOLAR': {'lat': 30.2672, 'lng': -97.7431, 'name': 'Austin Solar', 'type': 'Solar', 'capacity_mw': 150, 'region': 'Central Texas'},
     
     # Wind Farms
     'YNG_WND_ALL': {'lat': 33.5779, 'lng': -101.8552, 'name': 'Lubbock Wind', 'type': 'Wind', 'capacity_mw': 400, 'region': 'West Texas'},
-    'WND_WHITNEY': {'lat': 32.0543, 'lng': -97.3614, 'name': 'Fort Worth Wind', 'type': 'Wind', 'capacity_mw': 300, 'region': 'North Texas'},
+    'WND_WHITNEY': {'lat': 32.7567, 'lng': -97.3614, 'name': 'Fort Worth Wind', 'type': 'Wind', 'capacity_mw': 300, 'region': 'North Texas'},
     'WNDTS2_UNIT1': {'lat': 33.5779, 'lng': -101.8552, 'name': 'West Texas Wind', 'type': 'Wind', 'capacity_mw': 500, 'region': 'West Texas'},
     'QALSW_ALL': {'lat': 32.5007, 'lng': -99.7412, 'name': 'Sweetwater Wind', 'type': 'Wind', 'capacity_mw': 350, 'region': 'West Texas'},
     'GUNMTN_NODE': {'lat': 31.2593, 'lng': -104.5230, 'name': 'Gun Mountain Wind', 'type': 'Wind', 'capacity_mw': 280, 'region': 'West Texas'},
@@ -175,7 +199,7 @@ LOCATION_DATA = {
     'LCRA_ZONE': {'lat': 30.5085, 'lng': -97.8419, 'name': 'LCRA Zone', 'type': 'Load Zone', 'capacity_mw': 1000, 'region': 'Central Texas'},
     'ERCOT_ZONE1': {'lat': 29.7404, 'lng': -95.3898, 'name': 'Coast Zone', 'type': 'Load Zone', 'capacity_mw': 2000, 'region': 'Southeast Texas'},
     'ERCOT_ZONE2': {'lat': 31.7619, 'lng': -106.4850, 'name': 'Far West Zone', 'type': 'Load Zone', 'capacity_mw': 800, 'region': 'West Texas'},
-    'ERCOT_ZONE3': {'lat': 32.7767, 'lng': -96.7970, 'name': 'North Central Zone', 'type': 'Load Zone', 'capacity_mw': 2500, 'region': 'North Texas'},
+    'ERCOT_ZONE3': {'lat': 32.7667, 'lng': -96.7870, 'name': 'North Central Zone', 'type': 'Load Zone', 'capacity_mw': 2500, 'region': 'North Texas'},
     'ERCOT_ZONE4': {'lat': 29.4241, 'lng': -98.4936, 'name': 'South Central Zone', 'type': 'Load Zone', 'capacity_mw': 1800, 'region': 'South Texas'}
 }
 
@@ -934,19 +958,24 @@ def test_geographic_scenario():
         # Add to history
         add_to_price_history(modified_data, scenario)
         
+        # Check if geographic detection worked
+        geographic_detected = any(effect.get('distance_km') is not None for effect in effects_applied)
+        detected_regions = list(set([effect.get('distance_km') for effect in effects_applied if 'distance_km' in effect and effect['distance_km'] is not None]))
+        
         return jsonify({
             'success': True,
             'scenario': scenario,
-            'geographic_detection': 'houston' in scenario.lower(),
+            'geographic_detection': geographic_detected,
             'total_affected': len(effects_applied),
             'effects_summary': effects_applied[:10],  # First 10 effects
             'geographic_analysis': {
-                'houston_locations': len([e for e in effects_applied if e.get('distance_km') is not None]),
+                'geographic_locations': len([e for e in effects_applied if e.get('distance_km') is not None]),
                 'unique_percentages': len(set([e['change_percent'] for e in effects_applied])),
                 'distance_range': {
                     'min': min([e.get('distance_km', 999) for e in effects_applied if e.get('distance_km') is not None], default=0),
                     'max': max([e.get('distance_km', 0) for e in effects_applied if e.get('distance_km') is not None], default=0)
-                }
+                },
+                'regions_detected': [effect.get('impact_region') for effect in effects_applied if 'impact_region' in effect]
             }
         })
         

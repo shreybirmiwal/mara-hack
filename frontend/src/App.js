@@ -3,6 +3,7 @@ import axios from 'axios';
 import Map, { Source, Layer, Popup } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './App.css';
+import peopleData from './people.json';
 
 // Mapbox access token - Get your free token at https://account.mapbox.com/access-tokens/
 // Instructions: 1. Sign up at mapbox.com, 2. Go to access tokens, 3. Create a token, 4. Replace the token below
@@ -62,7 +63,13 @@ function App() {
   const [showNewsTab, setShowNewsTab] = useState(true); // Always show news panel
   const [allEffects, setAllEffects] = useState([]);
 
+  // People simulation state
+  const [people, setPeople] = useState([]);
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  const [showPersonPopup, setShowPersonPopup] = useState(false);
+
   const mapRef = useRef();
+  const animationRef = useRef();
 
   const [viewState, setViewState] = useState({
     longitude: -99.9018,

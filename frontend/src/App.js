@@ -93,10 +93,7 @@ function App() {
 
   useEffect(() => {
     fetchData();
-
-    // Auto-refresh every 30 seconds to see price changes
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    // Removed auto-refresh - price changes now only happen when scenarios are run
   }, []);
 
   // Create GeoJSON for energy locations
@@ -225,11 +222,18 @@ function App() {
     if (features && features.length > 0) {
       const feature = features[0];
       if (feature.layer.id === 'energy-points') {
-        setSelectedLocation({
-          ...feature.properties,
-          coordinates: feature.geometry.coordinates
-        });
-        setShowPopup(true);
+        const clickedLocationCode = feature.properties.location_code;
+
+        // Find the most up-to-date location data from energyData
+        const currentLocation = energyData.find(loc => loc.location_code === clickedLocationCode);
+
+        if (currentLocation) {
+          setSelectedLocation({
+            ...currentLocation,
+            coordinates: feature.geometry.coordinates
+          });
+          setShowPopup(true);
+        }
       }
     }
   };
@@ -240,7 +244,7 @@ function App() {
   };
 
   const formatPriceChange = (change, percent) => {
-    if (change === 0) return 'No change';
+    if (change === 0 || Math.abs(percent) < 0.1) return 'No change';
     const sign = change > 0 ? '+' : '';
     return `${sign}$${change.toFixed(2)} (${sign}${percent.toFixed(1)}%)`;
   };
@@ -261,6 +265,23 @@ function App() {
     }
   };
 
+  const getScenarioChangeInfo = (location) => {
+    // For scenario-affected locations, show the change from base price
+    if (location.scenario_affected && location.base_change !== undefined) {
+      return {
+        change: location.base_change,
+        percent: location.base_change_percent,
+        description: `Change from baseline: ${location.base_change > 0 ? '+' : ''}$${location.base_change.toFixed(2)} (${location.base_change > 0 ? '+' : ''}${location.base_change_percent.toFixed(1)}%)`
+      };
+    }
+    // For non-affected locations, show regular price change
+    return {
+      change: location.price_change || 0,
+      percent: location.price_change_percent || 0,
+      description: formatPriceChange(location.price_change || 0, location.price_change_percent || 0)
+    };
+  };
+
   // Handle scenario submission
   const handleScenarioSubmit = async (e) => {
     e.preventDefault();
@@ -274,7 +295,7 @@ function App() {
       });
 
       if (response.data.success) {
-        // Handle multiple notifications
+        // Handle multiple notifications for the right panel only
         if (response.data.notifications && Array.isArray(response.data.notifications)) {
           const newNotifications = response.data.notifications.map((notif, index) => ({
             id: Date.now() + index,
@@ -300,7 +321,44 @@ function App() {
             setAllEffects(prev => [...prev, ...response.data.effects_summary]);
           }
 
-          // Simulation now runs indefinitely - no auto-reset
+          // Update selectedLocation with new data if a popup is open
+          if (showPopup && selectedLocation) {
+            const updatedLocation = response.data.modified_data.find(loc =>
+              loc.lat === selectedLocation.lat && loc.lng === selectedLocation.lng
+            );
+            if (updatedLocation) {
+              setSelectedLocation({
+                ...updatedLocation,
+                coordinates: [updatedLocation.lng, updatedLocation.lat]
+              });
+            }
+          }
+
+          // Refresh data to get updated price history from scenarios
+          setTimeout(async () => {
+            await fetchData();
+            // Also refresh the popup if it's open - fetch fresh data
+            if (showPopup && selectedLocation) {
+              try {
+                const freshResponse = await axios.get('http://localhost:5001/api/energy-data');
+                if (freshResponse.data.success) {
+                  const freshData = freshResponse.data.data;
+                  const refreshedLocation = freshData.find(loc =>
+                    loc.location_code === selectedLocation.location_code ||
+                    (loc.lat === selectedLocation.lat && loc.lng === selectedLocation.lng)
+                  );
+                  if (refreshedLocation) {
+                    setSelectedLocation({
+                      ...refreshedLocation,
+                      coordinates: [refreshedLocation.lng, refreshedLocation.lat]
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error('Error refreshing popup data:', error);
+              }
+            }
+          }, 1000);
         }
 
         setChatInput('');
@@ -310,6 +368,44 @@ function App() {
       setError('Failed to process scenario. Please try again.');
     } finally {
       setIsProcessingScenario(false);
+    }
+  };
+
+  // Function to reset system to baseline
+  const handleResetToBaseline = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.post('http://localhost:5001/api/reset-to-baseline');
+
+      if (response.data.success) {
+        setEnergyData(response.data.data);
+        setNotifications([]);
+        setAllEffects([]);
+        setScenarioEffectsActive(false);
+        setError(null);
+
+        // Close popup if open
+        setShowPopup(false);
+        setSelectedLocation(null);
+
+        // Show success message briefly
+        setNotifications([{
+          id: Date.now(),
+          message: 'System reset to baseline prices - all scenarios cleared',
+          type: 'info',
+          region: 'System',
+          impact: 'Low',
+          timestamp: new Date()
+        }]);
+
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => setNotifications([]), 5000);
+      }
+    } catch (error) {
+      console.error('Error resetting to baseline:', error);
+      setError('Failed to reset system to baseline');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -390,50 +486,6 @@ function App() {
 
   return (
     <div className="h-screen bg-gray-900 relative overflow-hidden">
-      {/* Multiple Breaking News Style Notifications - Top Left */}
-      {notifications.length > 0 && (
-        <div className="absolute top-4 left-4 z-50 max-w-md space-y-3">
-          {/* Clear All Button */}
-          {notifications.length > 1 && (
-            <div className="flex justify-end">
-              <button
-                onClick={clearAllNotifications}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
-              >
-                Clear All ({notifications.length})
-              </button>
-            </div>
-          )}
-
-          {/* Notifications */}
-          {notifications.map((notification, index) => (
-            <div key={notification.id} className="animate-slide-down" style={{ animationDelay: `${index * 200}ms` }}>
-              <div className="bg-red-600 text-white px-4 py-2 shadow-2xl border-l-4 border-red-800">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                    <span className="text-xs font-bold tracking-wider">
-                      {notification.timestamp.toLocaleTimeString()} | BREAKING ENERGY ALERT
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => removeNotification(notification.id)}
-                    className="text-white hover:text-red-200 text-lg font-bold"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="mt-2 text-sm font-medium leading-relaxed">
-                  {notification.message}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* News panel is now always visible */}
-
       {/* News/Nodes Side Panel - Always Visible */}
       <div className="fixed top-0 right-0 w-96 h-full bg-gray-900 bg-opacity-95 backdrop-blur-sm z-40 overflow-y-auto border-l border-gray-700">
         <div className="p-4">
@@ -445,7 +497,7 @@ function App() {
             {/* Close button removed - panel always visible */}
           </div>
 
-          {/* Active Notifications */}
+          {/* Active Notifications - Keep these on the right panel */}
           {notifications.length > 0 && (
             <div className="mb-6">
               <h3 className="text-white text-lg font-semibold mb-3 flex items-center space-x-2">
@@ -461,9 +513,29 @@ function App() {
                     <div className="text-white text-sm mt-1">
                       {notification.message}
                     </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-red-300">
+                        Impact: {notification.impact || 'Medium'}
+                      </span>
+                      <button
+                        onClick={() => removeNotification(notification.id)}
+                        className="text-red-300 hover:text-white text-xs"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
+
+              {notifications.length > 1 && (
+                <button
+                  onClick={clearAllNotifications}
+                  className="mt-3 w-full bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm"
+                >
+                  Clear All ({notifications.length})
+                </button>
+              )}
             </div>
           )}
 
@@ -500,7 +572,7 @@ function App() {
                     </div>
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-gray-400">
-                        ${effect.old_price.toFixed(2)} → ${effect.new_price.toFixed(2)}
+                        ${effect.base_price ? effect.base_price.toFixed(2) : effect.old_price.toFixed(2)} → ${effect.new_price.toFixed(2)}
                       </span>
                       <span className="text-blue-400 hover:text-blue-300">
                         📍 Zoom to location
@@ -514,25 +586,63 @@ function App() {
 
           {/* Clear All Button */}
           {(notifications.length > 0 || allEffects.length > 0) && (
-            <button
-              onClick={() => {
-                setNotifications([]);
-                setAllEffects([]);
-              }}
-              className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors duration-200"
-            >
-              Clear All News & Effects
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  setNotifications([]);
+                  setAllEffects([]);
+                }}
+                className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors duration-200"
+              >
+                Clear All News & Effects
+              </button>
+
+              <button
+                onClick={handleResetToBaseline}
+                disabled={loading}
+                className="w-full bg-blue-700 hover:bg-blue-600 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Resetting...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔄</span>
+                    <span>Reset to Baseline</span>
+                  </>
+                )}
+              </button>
+            </div>
           )}
 
-          {/* No Data State */}
+          {/* No Data State with Reset Option */}
           {notifications.length === 0 && allEffects.length === 0 && (
             <div className="text-center text-gray-400 py-8">
               <div className="text-4xl mb-4">📡</div>
               <div className="text-lg mb-2">No active news or effects</div>
-              <div className="text-sm">
+              <div className="text-sm mb-4">
                 Run a scenario simulation to see live updates and affected nodes here.
               </div>
+
+              <button
+                onClick={handleResetToBaseline}
+                disabled={loading}
+                className="bg-blue-700 hover:bg-blue-600 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2 mx-auto"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Resetting...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔄</span>
+                    <span>Reset to Baseline</span>
+                  </>
+                )}
+              </button>
             </div>
           )}
         </div>
@@ -634,7 +744,7 @@ function App() {
                           className="font-semibold text-sm"
                           style={{ color: getTrendColor(selectedLocation.trend || 'stable') }}
                         >
-                          {formatPriceChange(selectedLocation.price_change || 0, selectedLocation.price_change_percent || 0)}
+                          {getScenarioChangeInfo(selectedLocation).description}
                         </span>
                       </div>
                     </div>
@@ -664,15 +774,16 @@ function App() {
         {/* Scenario Status Indicator - Top Right */}
         {scenarioEffectsActive && (
           <div className="absolute top-4 right-[25rem] z-50">
-            <div className="bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg border border-yellow-500">
+            <>
+            </>
+            {/* <div className="bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg border border-yellow-500">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                 <span className="text-sm font-bold">SCENARIO SIMULATION ACTIVE</span>
               </div>
-              <div className="text-xs opacity-90 mt-1">
+              {/* <div className="text-xs opacity-90 mt-1">
                 Simulation running indefinitely
-              </div>
-            </div>
+              </div> */}
           </div>
         )}
 
@@ -723,7 +834,7 @@ function App() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
 

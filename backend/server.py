@@ -41,12 +41,25 @@ else:
         api_key=OPENROUTER_API_KEY,
     )
 
-# Removed cache - fetch fresh data every time
-
 # Price history storage (in production, this would be a database)
 _price_history = {
-    'data': [],  # List of {timestamp, location_data}
-    'max_history': 50  # Keep last 50 data points
+    'data': [],  # List of {timestamp, location_data, scenario_name}
+    'max_history': 50,  # Keep last 50 data points
+    'base_prices': {}  # Store original base prices for proper comparison
+}
+
+# Static base prices for each location type (not fetched from API)
+BASE_PRICES = {
+    'Solar': 25.0,
+    'Wind': 30.0,
+    'Traditional': 45.0,
+    'Battery Storage': 60.0,
+    'Peaker': 85.0,
+    'Load Center': 40.0,
+    'Load Zone': 35.0,
+    'Hydro': 20.0,
+    'Nuclear': 35.0,
+    'Unknown': 40.0
 }
 
 # Texas location data for ERCOT nodes (approximate coordinates)
@@ -96,58 +109,88 @@ LOCATION_DATA = {
     'ERCOT_ZONE4': {'lat': 29.4241, 'lng': -98.4936, 'name': 'South Central Zone', 'type': 'Load Zone', 'capacity_mw': 1800, 'region': 'South Texas'}
 }
 
-# Cache functions removed - no caching
+def initialize_base_prices():
+    """Initialize base prices for all locations if not already done"""
+    if not _price_history['base_prices']:
+        for location_code, location_info in LOCATION_DATA.items():
+            # Use static base price for location type
+            base_price = BASE_PRICES.get(location_info['type'], BASE_PRICES['Unknown'])
+            
+            # Add small random variation (±5%) for realism, but keep it consistent
+            location_seed = hash(location_code)
+            random.seed(location_seed)
+            variation = random.uniform(-0.05, 0.05)
+            final_price = round(base_price * (1 + variation), 2)
+            
+            _price_history['base_prices'][location_code] = final_price
 
-def add_to_price_history(data):
+def add_to_price_history(data, scenario_name=None):
     """Add current data to price history"""
     timestamp = datetime.now().isoformat()
     _price_history['data'].append({
         'timestamp': timestamp,
-        'locations': data
+        'locations': data,
+        'scenario': scenario_name or 'base_data'
     })
     
     # Keep only the last max_history entries
     if len(_price_history['data']) > _price_history['max_history']:
         _price_history['data'] = _price_history['data'][-_price_history['max_history']:]
 
-def calculate_price_changes(current_data):
-    """Calculate price changes from previous data points"""
-    if len(_price_history['data']) < 2:
-        # Not enough history, return current data with zero changes
-        for item in current_data:
-            item['price_change'] = 0
-            item['price_change_percent'] = 0
-            item['trend'] = 'stable'
-            item['price_history'] = [item['price_mwh']]  # Just current price
-        return current_data
+def calculate_unified_price_changes(current_data):
+    """
+    Unified price change calculation that properly handles:
+    1. Base price comparisons
+    2. Scenario effects
+    3. Consistent trend calculations
+    4. Proper percentage math
+    """
+    # Ensure base prices are initialized
+    initialize_base_prices()
     
-    # Get previous data point
-    previous_data = _price_history['data'][-2]['locations']
-    previous_by_code = {item['location_code']: item for item in previous_data}
+    # Get the most recent previous data point for trend analysis
+    previous_data = None
+    if len(_price_history['data']) >= 1:
+        previous_data = _price_history['data'][-1]['locations']
+        previous_by_code = {item['location_code']: item for item in previous_data}
     
-    # Get last 10 data points for trend analysis
-    recent_history = _price_history['data'][-10:]
+    # Get last 10 data points for price history
+    recent_history = _price_history['data'][-10:] if len(_price_history['data']) >= 10 else _price_history['data']
     
     for item in current_data:
         location_code = item['location_code']
         current_price = item['price_mwh']
+        base_price = _price_history['base_prices'].get(location_code, current_price)
         
-        # Calculate change from previous
-        if location_code in previous_by_code:
+        # Calculate changes from base price (for scenario effects)
+        base_change = current_price - base_price
+        base_change_percent = (base_change / base_price * 100) if base_price != 0 else 0
+        
+        # Calculate changes from previous data point (for trends)
+        previous_change = 0
+        previous_change_percent = 0
+        if previous_data and location_code in previous_by_code:
             previous_price = previous_by_code[location_code]['price_mwh']
-            price_change = current_price - previous_price
-            price_change_percent = (price_change / previous_price * 100) if previous_price != 0 else 0
-        else:
-            price_change = 0
-            price_change_percent = 0
+            previous_change = current_price - previous_price
+            previous_change_percent = (previous_change / previous_price * 100) if previous_price != 0 else 0
         
-        # Determine trend
-        if price_change_percent > 5:
-            trend = 'rising'
-        elif price_change_percent < -5:
-            trend = 'falling'
+        # Determine which change to display based on scenario status
+        if item.get('scenario_affected', False):
+            # For scenario-affected locations, show change from base price
+            display_change = base_change
+            display_change_percent = base_change_percent
         else:
+            # For non-affected locations, show change from previous or zero if first time
+            display_change = previous_change
+            display_change_percent = previous_change_percent
+        
+        # Determine trend based on the displayed change
+        if abs(display_change_percent) < 0.1:  # Less than 0.1% change
             trend = 'stable'
+        elif display_change_percent > 0:
+            trend = 'rising'
+        else:
+            trend = 'falling'
         
         # Build price history for this location
         price_history = []
@@ -163,11 +206,14 @@ def calculate_price_changes(current_data):
         # Limit to last 10 points
         price_history = price_history[-10:]
         
-        # Add calculated fields
-        item['price_change'] = round(price_change, 2)
-        item['price_change_percent'] = round(price_change_percent, 1)
+        # Add calculated fields with proper values
+        item['price_change'] = round(display_change, 2)
+        item['price_change_percent'] = round(display_change_percent, 1)
         item['trend'] = trend
         item['price_history'] = price_history
+        item['base_price'] = base_price
+        item['base_change'] = round(base_change, 2)
+        item['base_change_percent'] = round(base_change_percent, 1)
         
         # Add capacity_mw and region for frontend compatibility
         location_info = LOCATION_DATA.get(location_code, {})
@@ -176,166 +222,58 @@ def calculate_price_changes(current_data):
     
     return current_data
 
+def get_static_base_data():
+    """Get static base data without fetching from API"""
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    processed_data = []
+    for location_code, location_info in LOCATION_DATA.items():
+        # Use static base price for location type
+        base_price = BASE_PRICES.get(location_info['type'], BASE_PRICES['Unknown'])
+        
+        # Add small random variation (±5%) for realism, but keep it consistent
+        location_seed = hash(location_code)
+        random.seed(location_seed)
+        variation = random.uniform(-0.05, 0.05)
+        final_price = round(base_price * (1 + variation), 2)
+        
+        processed_data.append({
+            'location_code': location_code,
+            'name': location_info['name'],
+            'lat': location_info['lat'],
+            'lng': location_info['lng'],
+            'type': location_info['type'],
+            'capacity_mw': location_info.get('capacity_mw', 100),
+            'region': location_info.get('region', 'West Texas'),
+            'price_mwh': final_price,
+            'timestamp': current_time,
+            'price_category': 'high' if final_price > 50 else 'medium' if final_price > 25 else 'low'
+        })
+    
+    # Sort by price for better visualization
+    processed_data.sort(key=lambda x: x['price_mwh'], reverse=True)
+    
+    return processed_data
+
 def fetch_fresh_data():
-    """Fetch data from API and cache it"""
+    """Get static base data with proper price calculations"""
     try:
-        # If no API client, use mock data
-        if client is None:
-            logger.info("No API client available, using mock data")
-            df = pd.DataFrame()  # Empty dataframe to trigger mock data generation
-        else:
-            logger.info("Fetching fresh data from GridStatus API...")
-            
-            # Get just today's date for the most recent data point
-            today = datetime.now().strftime("%Y-%m-%d")
-            
-            # Fetch data from GridStatus API with retry logic
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    df = client.get_dataset(
-                        dataset="ercot_spp_real_time_15_min",
-                        start=today,
-                        end=today,
-                        timezone="market",
-                    )
-                    break
-                except Exception as e:
-                    logger.warning(f"API attempt {attempt + 1} failed: {str(e)}")
-                    if attempt < max_retries - 1:
-                        time.sleep(2 ** attempt)  # Exponential backoff
-                    else:
-                        # If all retries fail, use mock data
-                        logger.error("All API attempts failed, using mock data")
-                        df = pd.DataFrame()
-                        break
-            
-            if not df.empty:
-                logger.info(f"Retrieved {len(df)} records from GridStatus API")
+        logger.info("Fetching fresh energy data with unified price calculations")
         
-        # Process and enrich data with location information
-        processed_data = []
+        # Initialize base prices if not done
+        initialize_base_prices()
         
-        # Get the most recent data point for each location
-        if not df.empty:
-            # Get the latest timestamp across all data
-            latest_timestamp = df['interval_end_local'].max()
-            logger.info(f"Latest data timestamp: {latest_timestamp}")
-            
-            # Filter to only the most recent data points
-            latest_data = df[df['interval_end_local'] == latest_timestamp]
-            
-            for _, row in latest_data.iterrows():
-                location_code = row['location']
-                
-                # Get location info or use defaults
-                location_info = LOCATION_DATA.get(location_code, {
-                    'lat': 31.9686, 'lng': -99.9018, 'name': location_code, 'type': 'Unknown'
-                })
-                
-                # Convert pricing data (assuming it's in $/MWh)
-                price = float(row.get('spp', 0)) if pd.notna(row.get('spp')) else 0
-                
-                processed_data.append({
-                    'location_code': location_code,
-                    'name': location_info['name'],  # Changed from location_name to name
-                    'lat': location_info['lat'],
-                    'lng': location_info['lng'],
-                    'type': location_info['type'],
-                    'capacity_mw': location_info.get('capacity_mw', 100),
-                    'region': location_info.get('region', 'West Texas'),
-                    'price_mwh': round(price, 2),
-                    'timestamp': row['interval_end_local'].strftime('%Y-%m-%d %H:%M:%S') if pd.notna(row.get('interval_end_local')) else None,
-                    'price_category': 'high' if price > 50 else 'medium' if price > 25 else 'low'
-                })
-        else:
-            # If no API data, use mock data for demonstration
-            logger.warning("No API data available, using mock data")
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            
-            # Create time-based variation for realistic price movements
-            time_seed = int(time.time() / 30)  # Change every 30 seconds
-            random.seed(time_seed)
-            
-            # Add market movement that changes over time
-            market_volatility = random.uniform(-20, 20)  # Overall market movement
-            base_variation = market_volatility if len(_price_history['data']) > 0 else 0
-            
-            logger.info(f"Mock data variation: {base_variation:.2f} (history entries: {len(_price_history['data'])})")
-            
-            for location_code, location_info in LOCATION_DATA.items():
-                # Generate realistic mock prices based on location type
-                if location_info['type'] == 'Solar':
-                    base_price = random.uniform(15, 45)
-                elif location_info['type'] == 'Wind':
-                    base_price = random.uniform(20, 60)
-                elif location_info['type'] == 'Traditional':
-                    base_price = random.uniform(35, 85)
-                elif location_info['type'] == 'Battery Storage':
-                    base_price = random.uniform(40, 120)
-                elif location_info['type'] == 'Peaker':
-                    base_price = random.uniform(80, 200)
-                else:
-                    base_price = random.uniform(25, 75)
-                
-                # Apply market variation with location-specific noise
-                location_variation = random.uniform(-8, 8)
-                final_price = max(0.01, base_price + base_variation + location_variation)
-                
-                processed_data.append({
-                    'location_code': location_code,
-                    'name': location_info['name'],  # Changed from location_name to name
-                    'lat': location_info['lat'],
-                    'lng': location_info['lng'],
-                    'type': location_info['type'],
-                    'capacity_mw': location_info.get('capacity_mw', 100),
-                    'region': location_info.get('region', 'West Texas'),
-                    'price_mwh': round(final_price, 2),
-                    'timestamp': current_time,
-                    'price_category': 'high' if final_price > 50 else 'medium' if final_price > 25 else 'low'
-                })
+        # Get static base data
+        processed_data = get_static_base_data()
         
-        # Add to history first, then calculate price changes
-        add_to_price_history(processed_data)
-        processed_data = calculate_price_changes(processed_data)
+        # Apply unified price change calculations
+        processed_data = calculate_unified_price_changes(processed_data)
         
-        # Sort by price for better visualization
-        processed_data.sort(key=lambda x: x['price_mwh'], reverse=True)
-        
-        # Calculate statistics from the single moment
-        if processed_data:
-            prices = [d['price_mwh'] for d in processed_data]
-            stats = {
-                'total_records': len(processed_data),
-                'locations_count': len(processed_data),
-                'avg_price': round(sum(prices) / len(prices), 2),
-                'max_price': round(max(prices), 2),
-                'min_price': round(min(prices), 2),
-                'data_timestamp': processed_data[0]['timestamp'] if processed_data else None,
-                'data_range': {
-                    'start': today,
-                    'end': today
-                }
-            }
-        else:
-            stats = {
-                'total_records': 0,
-                'locations_count': 0,
-                'avg_price': 0,
-                'max_price': 0,
-                'min_price': 0,
-                'data_timestamp': None,
-                'data_range': {
-                    'start': today,
-                    'end': today
-                }
-            }
-        
-        logger.info(f"Processed {len(processed_data)} locations for timestamp: {stats.get('data_timestamp', 'N/A')}")
+        logger.info(f"Loaded {len(processed_data)} locations with unified price calculations")
         return processed_data
         
     except Exception as e:
-        logger.error(f"Error fetching fresh data: {str(e)}")
+        logger.error(f"Error getting fresh data: {str(e)}")
         return []
 
 @app.route('/api/health', methods=['GET'])
@@ -409,9 +347,12 @@ def get_energy_stats():
 
 def apply_scenario_effects(scenario, current_data):
     """
-    Apply realistic scenario effects to the energy data to show visual impacts
+    Apply realistic scenario effects to the energy data with proper price tracking
     """
     import re
+    
+    # Ensure base prices are initialized
+    initialize_base_prices()
     
     # Make a deep copy of the data to modify
     modified_data = [item.copy() for item in current_data]
@@ -563,9 +504,18 @@ def apply_scenario_effects(scenario, current_data):
         locations_to_affect = random.sample(affected_locations, min(num_to_affect, len(affected_locations)))
         
         for location in locations_to_affect:
+            location_code = location['location_code']
+            
+            # Get the original base price for this location
+            base_price = _price_history['base_prices'].get(location_code, location['price_mwh'])
+            
+            # Apply the scenario multiplier to the BASE price, not current price
+            new_price = round(base_price * multiplier, 2)
+            new_price = max(0.01, new_price)  # Ensure price stays positive
+            
+            # Store the old price for effects summary
             old_price = location['price_mwh']
-            new_price = round(old_price * multiplier, 2)
-            location['price_mwh'] = max(0.01, new_price)  # Ensure price stays positive
+            location['price_mwh'] = new_price
             
             # Update price category
             if location['price_mwh'] > 100:
@@ -581,11 +531,16 @@ def apply_scenario_effects(scenario, current_data):
             location['scenario_affected'] = True
             location['scenario_effect'] = effect_info['effect_desc']
             
+            # Calculate the ACTUAL change percent from base price for reporting
+            actual_change_percent = ((new_price - base_price) / base_price * 100) if base_price != 0 else 0
+            
             effects_applied.append({
                 'location': location['name'],
+                'location_code': location_code,
                 'old_price': old_price,
-                'new_price': location['price_mwh'],
-                'change_percent': round(((location['price_mwh'] - old_price) / old_price) * 100, 1),
+                'new_price': new_price,
+                'base_price': base_price,
+                'change_percent': round(actual_change_percent, 1),
                 'effect': effect_info['effect_desc']
             })
     
@@ -610,6 +565,12 @@ def analyze_scenario():
         
         # Apply scenario effects to the data first
         modified_data, effects_applied = apply_scenario_effects(scenario, current_data)
+        
+        # Now apply the unified price change calculations to get proper trends and percentages
+        modified_data = calculate_unified_price_changes(modified_data)
+        
+        # Add the modified data to price history AFTER calculations are complete
+        add_to_price_history(modified_data, scenario)
         
         # Check if we have a valid AI client for generating notifications
         if not OPENROUTER_API_KEY or ai_client is None:
@@ -789,6 +750,97 @@ Return ONLY a clean JSON array like: ["Alert 1", "Alert 2", "Alert 3"]"""
         return jsonify({
             'success': False,
             'error': f'Analysis failed: {str(e)}'
+        }), 500
+
+@app.route('/api/reset-to-baseline', methods=['POST'])
+def reset_to_baseline():
+    """Reset all prices back to baseline and clear scenario history"""
+    try:
+        # Clear price history
+        _price_history['data'].clear()
+        
+        # Get fresh base data
+        base_data = get_static_base_data()
+        
+        # Initialize base prices and apply unified calculations
+        initialize_base_prices()
+        processed_data = calculate_unified_price_changes(base_data)
+        
+        # Add base data to history
+        add_to_price_history(processed_data, 'baseline_reset')
+        
+        logger.info("System reset to baseline prices")
+        
+        return jsonify({
+            'success': True,
+            'message': 'System reset to baseline prices',
+            'data': processed_data,
+            'total_locations': len(processed_data)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error resetting to baseline: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Reset failed: {str(e)}'
+        }), 500
+
+@app.route('/api/debug-prices', methods=['GET'])
+def debug_prices():
+    """Debug endpoint to check price calculation consistency"""
+    try:
+        # Get current data
+        current_data = fetch_fresh_data()
+        
+        # Get base prices
+        initialize_base_prices()
+        base_prices = _price_history['base_prices'].copy()
+        
+        # Get price history
+        history_info = {
+            'total_entries': len(_price_history['data']),
+            'scenarios': [entry.get('scenario', 'unknown') for entry in _price_history['data'][-5:]]
+        }
+        
+        # Sample location analysis
+        sample_locations = current_data[:3] if current_data else []
+        location_analysis = []
+        
+        for loc in sample_locations:
+            location_code = loc['location_code']
+            analysis = {
+                'location_code': location_code,
+                'name': loc['name'],
+                'type': loc['type'],
+                'current_price': loc['price_mwh'],
+                'base_price': base_prices.get(location_code, 'not_found'),
+                'price_change': loc.get('price_change', 0),
+                'price_change_percent': loc.get('price_change_percent', 0),
+                'trend': loc.get('trend', 'unknown'),
+                'scenario_affected': loc.get('scenario_affected', False),
+                'base_change': loc.get('base_change', 0),
+                'base_change_percent': loc.get('base_change_percent', 0)
+            }
+            location_analysis.append(analysis)
+        
+        return jsonify({
+            'success': True,
+            'base_prices_initialized': len(base_prices),
+            'current_locations': len(current_data),
+            'history_info': history_info,
+            'sample_analysis': location_analysis,
+            'calculation_logic': {
+                'description': 'Unified price change calculation',
+                'scenario_affected_logic': 'Shows change from base price',
+                'non_affected_logic': 'Shows change from previous data point'
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in debug prices: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500
 
 if __name__ == '__main__':

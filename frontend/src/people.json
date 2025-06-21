@@ -6,7 +6,7 @@
         "emoji": "👨‍💻",
         "lat": 29.7604,
         "lng": -95.3698,
-        "defaultThought": "Debugging prod on a Friday",
+        "defaultThought": "Our data center's emergency generators just kicked in - Houston grid looking unstable",
         "personality": "anxious_perfectionist",
         "movementSpeed": 0.001
     },
@@ -17,7 +17,7 @@
         "emoji": "👩‍💼",
         "lat": 32.7767,
         "lng": -96.7970,
-        "defaultThought": "Need to speak to someone in charge",
+        "defaultThought": "ERCOT needs to explain why my facility's power costs doubled overnight",
         "personality": "assertive_leader",
         "movementSpeed": 0.0015
     },
@@ -28,7 +28,7 @@
         "emoji": "🚀",
         "lat": 30.2672,
         "lng": -97.7431,
-        "defaultThought": "Bitcoin to the moon!",
+        "defaultThought": "Mining rig shutdown - Texas power prices too volatile for profit margins",
         "personality": "optimistic_risk_taker",
         "movementSpeed": 0.002
     },
@@ -39,7 +39,7 @@
         "emoji": "📸",
         "lat": 29.4241,
         "lng": -98.4936,
-        "defaultThought": "This coffee is so aesthetic",
+        "defaultThought": "San Antonio rolling blackouts ruining my livestream - what's happening to the grid?",
         "personality": "social_butterfly",
         "movementSpeed": 0.0012
     },
@@ -50,7 +50,7 @@
         "emoji": "🔧",
         "lat": 33.5779,
         "lng": -101.8552,
-        "defaultThought": "Another clogged toilet...",
+        "defaultThought": "West Texas wind farms are down - whole town's power is out",
         "personality": "practical_grumpy",
         "movementSpeed": 0.0008
     },
@@ -61,7 +61,7 @@
         "emoji": "🧘‍♀️",
         "lat": 31.7619,
         "lng": -106.4850,
-        "defaultThought": "Finding my inner peace",
+        "defaultThought": "El Paso grid stressed - neighbors sharing generators for AC",
         "personality": "zen_master",
         "movementSpeed": 0.0005
     },
@@ -72,7 +72,7 @@
         "emoji": "⚡",
         "lat": 27.8006,
         "lng": -97.3964,
-        "defaultThought": "NEED MORE CAFFEINE",
+        "defaultThought": "Corpus Christi refinery outage - gas prices affecting electricity rates",
         "personality": "hyperactive",
         "movementSpeed": 0.003
     },
@@ -83,7 +83,7 @@
         "emoji": "🍷",
         "lat": 35.2220,
         "lng": -101.8313,
-        "defaultThought": "Is it 5 o'clock yet?",
+        "defaultThought": "Panhandle transmission lines iced over - power company called emergency protocols",
         "personality": "stressed_parent",
         "movementSpeed": 0.0009
     },
@@ -94,7 +94,7 @@
         "emoji": "💪",
         "lat": 30.0860,
         "lng": -94.1018,
-        "defaultThought": "Do you even lift?",
+        "defaultThought": "Beaumont industrial plants shutting down - grid can't handle the heat demand",
         "personality": "competitive_alpha",
         "movementSpeed": 0.0018
     },
@@ -105,7 +105,7 @@
         "emoji": "🌱",
         "lat": 31.9974,
         "lng": -102.0779,
-        "defaultThought": "My succulents need water",
+        "defaultThought": "Solar farm near Midland damaged by hail - renewable capacity dropping fast",
         "personality": "nurturing_obsessive",
         "movementSpeed": 0.0006
     },
@@ -116,7 +116,7 @@
         "emoji": "🎭",
         "lat": 25.9018,
         "lng": -97.4975,
-        "defaultThought": "This will get so many views",
+        "defaultThought": "Border region blackout trending - Mexico grid interconnect failing",
         "personality": "attention_seeker",
         "movementSpeed": 0.0022
     },
@@ -127,7 +127,7 @@
         "emoji": "📋",
         "lat": 32.3513,
         "lng": -95.3011,
-        "defaultThought": "That lawn is 0.5 inches too tall",
+        "defaultThought": "Tyler area substation fire - ERCOT issued conservation warning for East Texas",
         "personality": "rule_enforcer",
         "movementSpeed": 0.0007
     },
@@ -138,7 +138,7 @@
         "emoji": "👁️",
         "lat": 31.5493,
         "lng": -97.1467,
-        "defaultThought": "The truth is out there",
+        "defaultThought": "Waco transmission corridors compromised - someone's manipulating the grid pricing",
         "personality": "paranoid_truth_seeker",
         "movementSpeed": 0.0011
     },
@@ -149,7 +149,7 @@
         "emoji": "💅",
         "lat": 32.4487,
         "lng": -99.7331,
-        "defaultThought": "Hun, you NEED these oils",
+        "defaultThought": "Abilene natural gas shortage - my essential oil warehouse needs backup power",
         "personality": "pushy_entrepreneur",
         "movementSpeed": 0.0013
     },
@@ -160,7 +160,7 @@
         "emoji": "👨‍👧‍👦",
         "lat": 29.3013,
         "lng": -94.7977,
-        "defaultThought": "I'm not addicted to brake fluid...",
+        "defaultThought": "Galveston hurricane prep - offshore platforms evacuating, energy prices spiking",
         "personality": "wholesome_punny",
         "movementSpeed": 0.0009
     },
@@ -171,7 +171,7 @@
         "emoji": "🚁",
         "lat": 31.8457,
         "lng": -102.3676,
-        "defaultThought": "Is my child safe right now?",
+        "defaultThought": "Odessa school districts closing due to grid instability - kids safety first",
         "personality": "overprotective",
         "movementSpeed": 0.0014
     },
@@ -182,7 +182,7 @@
         "emoji": "🥒",
         "lat": 35.0000,
         "lng": -101.5000,
-        "defaultThought": "I turned myself into a pickle!",
+        "defaultThought": "Amarillo food processing plants offline - grid emergency affecting supply chain",
         "personality": "quirky_genius",
         "movementSpeed": 0.0016
     },
@@ -193,7 +193,7 @@
         "emoji": "🐱",
         "lat": 32.0000,
         "lng": -94.5000,
-        "defaultThought": "My cats understand me",
+        "defaultThought": "Longview paper mills shutting down due to transmission failures",
         "personality": "introverted_caring",
         "movementSpeed": 0.0004
     },
@@ -204,7 +204,7 @@
         "emoji": "📈",
         "lat": 27.5000,
         "lng": -98.5000,
-        "defaultThought": "Diamond hands forever",
+        "defaultThought": "Laredo bitcoin mining operations halted - electricity costs exceeding profits",
         "personality": "gambling_addict",
         "movementSpeed": 0.0025
     },
@@ -215,7 +215,7 @@
         "emoji": "🌸",
         "lat": 30.5000,
         "lng": -97.5000,
-        "defaultThought": "Lavender fixes everything",
+        "defaultThought": "Round Rock semiconductor fab reducing production - grid reliability issues",
         "personality": "new_age_believer",
         "movementSpeed": 0.0008
     },
@@ -226,7 +226,7 @@
         "emoji": "👟",
         "lat": 29.6604,
         "lng": -95.2698,
-        "defaultThought": "These Jordans will flip for 3x",
+        "defaultThought": "Houston Port Authority switching to emergency power - petrochemical sector stressed",
         "personality": "hustle_obsessed",
         "movementSpeed": 0.0019
     },
@@ -237,7 +237,7 @@
         "emoji": "✨",
         "lat": 32.6767,
         "lng": -96.8970,
-        "defaultThought": "Mercury is in retrograde again",
+        "defaultThought": "DFW airport backup generators running - weather impacting regional transmission",
         "personality": "mystical_dramatic",
         "movementSpeed": 0.0007
     },
@@ -248,7 +248,7 @@
         "emoji": "🤓",
         "lat": 30.1672,
         "lng": -97.8431,
-        "defaultThought": "That's against subreddit rules",
+        "defaultThought": "Austin data centers implementing load shedding - cloud services degraded",
         "personality": "power_hungry_nerd",
         "movementSpeed": 0.0003
     },
@@ -259,7 +259,7 @@
         "emoji": "📌",
         "lat": 29.3241,
         "lng": -98.5936,
-        "defaultThought": "This doesn't match my aesthetic",
+        "defaultThought": "San Antonio military bases on emergency power - national security implications",
         "personality": "perfectionist_anxious",
         "movementSpeed": 0.0010
     },
@@ -270,7 +270,7 @@
         "emoji": "🥤",
         "lat": 33.4779,
         "lng": -101.9552,
-        "defaultThought": "This energy drink changed my life",
+        "defaultThought": "Lubbock cotton processing halted - agricultural sector hit by grid failures",
         "personality": "hyperactive_salesman",
         "movementSpeed": 0.0028
     },
@@ -281,7 +281,7 @@
         "emoji": "💻",
         "lat": 31.6619,
         "lng": -106.5850,
-        "defaultThought": "Living my best life",
+        "defaultThought": "El Paso smelting operations suspended - industrial demand crashing grid",
         "personality": "fake_positive",
         "movementSpeed": 0.0012
     },
@@ -292,7 +292,7 @@
         "emoji": "🎮",
         "lat": 27.7006,
         "lng": -97.4964,
-        "defaultThought": "Chat, this is poggers",
+        "defaultThought": "Brownsville border crossing power out - trade corridor energy disrupted",
         "personality": "loud_entertainer",
         "movementSpeed": 0.0005
     },
@@ -303,7 +303,7 @@
         "emoji": "👩‍👧",
         "lat": 35.1220,
         "lng": -101.9313,
-        "defaultThought": "Did my child eat vegetables?",
+        "defaultThought": "Canyon area hospitals on generator power - medical facilities under stress",
         "personality": "anxious_perfectionist",
         "movementSpeed": 0.0009
     },
@@ -314,7 +314,7 @@
         "emoji": "🏋️‍♂️",
         "lat": 30.0060,
         "lng": -94.2018,
-        "defaultThought": "Have I mentioned I do CrossFit?",
+        "defaultThought": "Orange County chemical plants evacuating - refinery grid overload imminent",
         "personality": "obsessive_preacher",
         "movementSpeed": 0.0020
     },
@@ -325,7 +325,7 @@
         "emoji": "🥬",
         "lat": 31.8974,
         "lng": -102.1779,
-        "defaultThought": "But where do you get protein?",
+        "defaultThought": "Big Spring wind turbines iced over - renewable generation down 60%",
         "personality": "righteous_crusader",
         "movementSpeed": 0.0011
     },
@@ -336,7 +336,7 @@
         "emoji": "🚀",
         "lat": 25.8018,
         "lng": -97.5975,
-        "defaultThought": "We're disrupting the industry",
+        "defaultThought": "McAllen tech hub losing power - Mexico interconnect capacity strained",
         "personality": "delusionally_optimistic",
         "movementSpeed": 0.0017
     },
@@ -347,7 +347,7 @@
         "emoji": "🌟",
         "lat": 32.2513,
         "lng": -95.4011,
-        "defaultThought": "You just need to manifest it",
+        "defaultThought": "Marshall steel mills offline - East Texas industrial corridor failing",
         "personality": "toxic_positivity",
         "movementSpeed": 0.0013
     },
@@ -358,7 +358,7 @@
         "emoji": "🎙️",
         "lat": 31.4493,
         "lng": -97.2467,
-        "defaultThought": "Have you heard my podcast?",
+        "defaultThought": "Temple transmission substation explosion - Central Texas grid isolation protocol",
         "personality": "self_promoting",
         "movementSpeed": 0.0015
     },
@@ -369,7 +369,7 @@
         "emoji": "📝",
         "lat": 32.3487,
         "lng": -99.8331,
-        "defaultThought": "This parenting moment is content",
+        "defaultThought": "Sweetwater area schools closing - grid instability affecting rural communities",
         "personality": "oversharing_parent",
         "movementSpeed": 0.0008
     },
@@ -380,7 +380,7 @@
         "emoji": "⛏️",
         "lat": 29.2013,
         "lng": -94.8977,
-        "defaultThought": "My electricity bill is insane",
+        "defaultThought": "Freeport LNG facility offline - natural gas supply disruption spiking prices",
         "personality": "tech_obsessed",
         "movementSpeed": 0.0006
     },
@@ -391,7 +391,7 @@
         "emoji": "♻️",
         "lat": 31.7457,
         "lng": -102.4676,
-        "defaultThought": "This isn't zero waste enough",
+        "defaultThought": "Monahans solar array damaged - West Texas renewable capacity compromised",
         "personality": "eco_warrior",
         "movementSpeed": 0.0009
     },
@@ -402,7 +402,7 @@
         "emoji": "📦",
         "lat": 34.9000,
         "lng": -101.6000,
-        "defaultThought": "Passive income is the dream",
+        "defaultThought": "Dalhart warehouse district dark - supply chain disruption from grid failure",
         "personality": "lazy_entrepreneur",
         "movementSpeed": 0.0021
     },
@@ -413,7 +413,7 @@
         "emoji": "🧠",
         "lat": 31.9000,
         "lng": -94.6000,
-        "defaultThought": "It's okay to not be okay",
+        "defaultThought": "Kilgore healthcare systems on emergency power - patient care compromised",
         "personality": "empathetic_helper",
         "movementSpeed": 0.0007
     },
@@ -424,7 +424,7 @@
         "emoji": "🎨",
         "lat": 27.4000,
         "lng": -98.6000,
-        "defaultThought": "This JPEG is worth millions",
+        "defaultThought": "Zapata County wind farms offline - border region losing renewable capacity",
         "personality": "delusional_collector",
         "movementSpeed": 0.0023
     },
@@ -435,7 +435,7 @@
         "emoji": "🧴",
         "lat": 30.4000,
         "lng": -97.6000,
-        "defaultThought": "You need a 12-step routine",
+        "defaultThought": "Cedar Park distribution lines down - North Austin suburbs losing power",
         "personality": "perfectionist_advisor",
         "movementSpeed": 0.0010
     },
@@ -446,7 +446,7 @@
         "emoji": "🤖",
         "lat": 29.5604,
         "lng": -95.4698,
-        "defaultThought": "ChatGPT will solve everything",
+        "defaultThought": "Houston ship channel power outage - oil terminal operations suspended",
         "personality": "tech_optimist",
         "movementSpeed": 0.0014
     },
@@ -457,7 +457,7 @@
         "emoji": "👩‍🍳",
         "lat": 32.5767,
         "lng": -97.0970,
-        "defaultThought": "Cashews make everything creamy",
+        "defaultThought": "Fort Worth meat processing plant dark - food supply chain stressed",
         "personality": "creative_health_nut",
         "movementSpeed": 0.0011
     },
@@ -468,7 +468,7 @@
         "emoji": "💹",
         "lat": 30.0672,
         "lng": -97.9431,
-        "defaultThought": "Stonks only go up",
+        "defaultThought": "Austin semiconductor fabs offline - tech sector energy crisis deepening",
         "personality": "degenerate_gambler",
         "movementSpeed": 0.0026
     },
@@ -479,7 +479,7 @@
         "emoji": "🕯️",
         "lat": 29.2241,
         "lng": -98.6936,
-        "defaultThought": "Breathe in, breathe out",
+        "defaultThought": "San Antonio medical center on emergency power - healthcare systems failing",
         "personality": "zen_entrepreneur",
         "movementSpeed": 0.0004
     },
@@ -490,7 +490,7 @@
         "emoji": "😂",
         "lat": 33.3779,
         "lng": -102.0552,
-        "defaultThought": "This is so sus",
+        "defaultThought": "Lubbock university campus blackout - student evacuation underway",
         "personality": "chronically_online",
         "movementSpeed": 0.0016
     },
@@ -501,7 +501,7 @@
         "emoji": "🏮",
         "lat": 31.5619,
         "lng": -106.6850,
-        "defaultThought": "This energy flow is blocked",
+        "defaultThought": "El Paso military installation switching to backup power - border security compromised",
         "personality": "mystical_organizer",
         "movementSpeed": 0.0008
     },
@@ -512,7 +512,7 @@
         "emoji": "🍞",
         "lat": 27.6006,
         "lng": -97.5964,
-        "defaultThought": "My starter needs feeding",
+        "defaultThought": "Corpus Christi port operations halted - maritime energy supply disrupted",
         "personality": "obsessive_hobbyist",
         "movementSpeed": 0.0006
     },
@@ -523,7 +523,7 @@
         "emoji": "📦",
         "lat": 35.0220,
         "lng": -102.0313,
-        "defaultThought": "Do I really need this?",
+        "defaultThought": "Amarillo grain processing facilities offline - agricultural energy crisis",
         "personality": "anxious_simplifier",
         "movementSpeed": 0.0009
     },
@@ -534,7 +534,7 @@
         "emoji": "🧬",
         "lat": 29.9060,
         "lng": -94.3018,
-        "defaultThought": "I'm optimizing my telomeres",
+        "defaultThought": "Pasadena chemical refineries evacuating - petrochemical sector shutdown",
         "personality": "obsessive_optimizer",
         "movementSpeed": 0.0012
     },
@@ -545,7 +545,7 @@
         "emoji": "🎨",
         "lat": 31.7974,
         "lng": -102.2779,
-        "defaultThought": "This needs more glitter",
+        "defaultThought": "Midland drilling operations suspended - oil field electricity shortage",
         "personality": "craft_perfectionist",
         "movementSpeed": 0.0010
     },
@@ -556,7 +556,7 @@
         "emoji": "🍄",
         "lat": 25.7018,
         "lng": -97.6975,
-        "defaultThought": "My SCOBY is thriving",
+        "defaultThought": "McAllen border checkpoints losing power - Mexico interconnect failing",
         "personality": "fermentation_fanatic",
         "movementSpeed": 0.0007
     },
@@ -567,7 +567,7 @@
         "emoji": "📖",
         "lat": 32.1513,
         "lng": -95.5011,
-        "defaultThought": "I need to track this habit",
+        "defaultThought": "Longview steel mills shutting down - East Texas industrial collapse",
         "personality": "organization_addict",
         "movementSpeed": 0.0009
     },
@@ -578,7 +578,7 @@
         "emoji": "🎮",
         "lat": 31.3493,
         "lng": -97.3467,
-        "defaultThought": "Someone's breaking server rules",
+        "defaultThought": "Waco distribution grid failing - Central Texas cities going dark",
         "personality": "digital_authority",
         "movementSpeed": 0.0004
     },
@@ -589,7 +589,7 @@
         "emoji": "🕯️",
         "lat": 32.2487,
         "lng": -99.9331,
-        "defaultThought": "This scent needs more vanilla",
+        "defaultThought": "Abilene manufacturing district offline - West Texas industry struggling",
         "personality": "sensory_perfectionist",
         "movementSpeed": 0.0008
     },
@@ -600,7 +600,7 @@
         "emoji": "📊",
         "lat": 29.1013,
         "lng": -95.0977,
-        "defaultThought": "The market is totally rational",
+        "defaultThought": "Houston energy trading floor evacuated - commodity markets crashing",
         "personality": "overconfident_analyst",
         "movementSpeed": 0.0018
     },
@@ -611,7 +611,7 @@
         "emoji": "🔮",
         "lat": 31.6457,
         "lng": -102.5676,
-        "defaultThought": "The cards never lie",
+        "defaultThought": "Odessa petroleum storage facilities evacuating - energy reserves threatened",
         "personality": "mystical_advisor",
         "movementSpeed": 0.0006
     },
@@ -622,7 +622,7 @@
         "emoji": "🍺",
         "lat": 34.8000,
         "lng": -101.7000,
-        "defaultThought": "This IPA needs more hops",
+        "defaultThought": "Dalhart wheat processing plants dark - agricultural supply chain failing",
         "personality": "craft_obsessed",
         "movementSpeed": 0.0011
     },
@@ -633,7 +633,7 @@
         "emoji": "🎯",
         "lat": 31.8000,
         "lng": -94.7000,
-        "defaultThought": "Visualize your success",
+        "defaultThought": "Kilgore oil pumping stations offline - East Texas production halted",
         "personality": "manifestation_believer",
         "movementSpeed": 0.0012
     },
@@ -644,7 +644,7 @@
         "emoji": "⏰",
         "lat": 27.3000,
         "lng": -98.7000,
-        "defaultThought": "I need to optimize this process",
+        "defaultThought": "Laredo trade corridor blackout - Mexico energy imports disrupted",
         "personality": "efficiency_obsessed",
         "movementSpeed": 0.0015
     },
@@ -655,7 +655,7 @@
         "emoji": "🙏",
         "lat": 30.3000,
         "lng": -97.7000,
-        "defaultThought": "Grateful for this moment",
+        "defaultThought": "Georgetown solar array damaged by storms - renewable capacity lost",
         "personality": "relentlessly_positive",
         "movementSpeed": 0.0005
     },
@@ -666,7 +666,7 @@
         "emoji": "☕",
         "lat": 29.4604,
         "lng": -95.5698,
-        "defaultThought": "This isn't single origin",
+        "defaultThought": "Baytown refinery complex shutdown - gasoline supply disrupted statewide",
         "personality": "pretentious_connoisseur",
         "movementSpeed": 0.0013
     },
@@ -677,7 +677,7 @@
         "emoji": "💒",
         "lat": 32.4767,
         "lng": -97.1970,
-        "defaultThought": "Pinterest has better ideas",
+        "defaultThought": "Arlington data centers on emergency power - DFW tech corridor stressed",
         "personality": "perfectionist_romantic",
         "movementSpeed": 0.0010
     },
@@ -688,7 +688,7 @@
         "emoji": "⏱️",
         "lat": 29.9672,
         "lng": -98.0431,
-        "defaultThought": "I'm in hour 16 of my fast",
+        "defaultThought": "New Braunfels manufacturing offline - Central Texas industry failing",
         "personality": "self_control_preacher",
         "movementSpeed": 0.0009
     },
@@ -699,7 +699,7 @@
         "emoji": "📦",
         "lat": 29.1241,
         "lng": -98.7936,
-        "defaultThought": "This month's theme is perfect",
+        "defaultThought": "Victoria petrochemical plants evacuating - Gulf Coast energy crisis",
         "personality": "curation_perfectionist",
         "movementSpeed": 0.0011
     },
@@ -710,7 +710,7 @@
         "emoji": "🏠",
         "lat": 33.2779,
         "lng": -102.1552,
-        "defaultThought": "Alexa, optimize my life",
+        "defaultThought": "Levelland wind farm iced over - renewable capacity dropping rapidly",
         "personality": "tech_convenience_addict",
         "movementSpeed": 0.0008
     },
@@ -721,7 +721,7 @@
         "emoji": "🎃",
         "lat": 31.4619,
         "lng": -106.7850,
-        "defaultThought": "It's time to redecorate",
+        "defaultThought": "El Paso cross-border energy trade suspended - binational grid failing",
         "personality": "aesthetic_seasonal",
         "movementSpeed": 0.0007
     },
@@ -732,7 +732,7 @@
         "emoji": "🥘",
         "lat": 27.5006,
         "lng": -97.6964,
-        "defaultThought": "Sunday prep day is sacred",
+        "defaultThought": "Brownsville LNG terminal offline - natural gas exports halted",
         "personality": "organized_planner",
         "movementSpeed": 0.0010
     },
@@ -743,7 +743,7 @@
         "emoji": "📋",
         "lat": 35.1220,
         "lng": -102.1313,
-        "defaultThought": "Did I check off my habits?",
+        "defaultThought": "Dumas industrial complex dark - Panhandle energy production stopped",
         "personality": "compulsive_tracker",
         "movementSpeed": 0.0012
     },
@@ -754,7 +754,7 @@
         "emoji": "🧊",
         "lat": 29.8060,
         "lng": -94.4018,
-        "defaultThought": "24 hour steep time minimum",
+        "defaultThought": "Beaumont chemical corridor evacuating - toxic release risk from grid failure",
         "personality": "patient_perfectionist",
         "movementSpeed": 0.0006
     },
@@ -765,7 +765,7 @@
         "emoji": "🌅",
         "lat": 31.6974,
         "lng": -102.3779,
-        "defaultThought": "5 AM is the key to success",
+        "defaultThought": "Permian Basin drilling rigs offline - oil production crashing",
         "personality": "early_bird_extremist",
         "movementSpeed": 0.0014
     },
@@ -776,7 +776,7 @@
         "emoji": "🪴",
         "lat": 25.6018,
         "lng": -97.7975,
-        "defaultThought": "My fiddle leaf fig is moody",
+        "defaultThought": "Rio Grande Valley agriculture dark - border energy infrastructure failing",
         "personality": "plant_parent_neurotic",
         "movementSpeed": 0.0005
     },
@@ -820,7 +820,7 @@
         "emoji": "📵",
         "lat": 29.0013,
         "lng": -95.1977,
-        "defaultThought": "Put down that phone",
+        "defaultThought": "NASA Johnson Space Center on backup power - space operations compromised",
         "personality": "reformed_tech_addict",
         "movementSpeed": 0.0004
     },
@@ -875,7 +875,7 @@
         "emoji": "🌙",
         "lat": 30.2000,
         "lng": -97.8000,
-        "defaultThought": "3 AM cheese is the best",
+        "defaultThought": "Austin nighttime energy demand spike - grid overloaded by cooling systems",
         "personality": "nocturnal_foodie",
         "movementSpeed": 0.0003
     },
@@ -930,7 +930,7 @@
         "emoji": "📱",
         "lat": 33.1779,
         "lng": -102.2552,
-        "defaultThought": "This app lacks gamification",
+        "defaultThought": "South Plains wind turbines frozen - winter storm crippling renewables",
         "personality": "optimization_seeker",
         "movementSpeed": 0.0013
     },
@@ -985,7 +985,7 @@
         "emoji": "🎵",
         "lat": 31.5974,
         "lng": -102.4779,
-        "defaultThought": "This song screams autumn",
+        "defaultThought": "West Texas oil pipelines shut down - energy transport infrastructure failing",
         "personality": "mood_music_matcher",
         "movementSpeed": 0.0009
     },
@@ -1040,7 +1040,7 @@
         "emoji": "📧",
         "lat": 28.9013,
         "lng": -95.2977,
-        "defaultThought": "This CTA button needs work",
+        "defaultThought": "Galveston Bay area petrochemical plants evacuating - storm surge threat",
         "personality": "detail_obsessed",
         "movementSpeed": 0.0007
     },
@@ -1095,7 +1095,7 @@
         "emoji": "⏰",
         "lat": 30.1000,
         "lng": -97.9000,
-        "defaultThought": "I need 17 alarms minimum",
+        "defaultThought": "Austin emergency alert system activated - citywide power conservation required",
         "personality": "punctuality_paranoid",
         "movementSpeed": 0.0008
     }

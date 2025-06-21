@@ -140,6 +140,9 @@ function App() {
         homeCity: selectedCity.name,
         targetLat: cityLat + (Math.random() - 0.5) * 0.3,
         targetLng: cityLng + (Math.random() - 0.5) * 0.3,
+        // Initialize movement indicator positions
+        movementIndicatorLat: cityLat,
+        movementIndicatorLng: cityLng,
         currentThought: person.defaultThought,
         lastUpdated: Date.now()
       };
@@ -156,15 +159,15 @@ function App() {
     }
   }, []);
 
-  // Animate people movement
+  // Animation for movement indicators (separate from people dots)
   useEffect(() => {
-    const animatePeople = () => {
+    const animateMovementIndicators = () => {
       setPeople(prevPeople => {
         return prevPeople.map(person => {
           const now = Date.now();
           const timeDelta = (now - person.lastUpdated) / 1000;
 
-          // Calculate movement towards target
+          // Calculate movement towards target for movement indicators only
           const latDiff = person.targetLat - person.currentLat;
           const lngDiff = person.targetLng - person.currentLng;
           const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
@@ -177,26 +180,33 @@ function App() {
               ...person,
               targetLat: newTargetLat,
               targetLng: newTargetLng,
+              // Update movement indicator position
+              movementIndicatorLat: person.currentLat,
+              movementIndicatorLng: person.currentLng,
               lastUpdated: now
             };
           }
 
-          // Move towards target - increased speed by 75x for better visibility (5x faster than previous 15x)
+          // Move the movement indicator towards target (not the person dot)
           const moveSpeed = person.movementSpeed * timeDelta * 75;
-          const newLat = person.currentLat + (latDiff / distance) * moveSpeed;
-          const newLng = person.currentLng + (lngDiff / distance) * moveSpeed;
+          const newMovementLat = (person.movementIndicatorLat || person.currentLat) + (latDiff / distance) * moveSpeed;
+          const newMovementLng = (person.movementIndicatorLng || person.currentLng) + (lngDiff / distance) * moveSpeed;
 
           return {
             ...person,
-            currentLat: newLat,
-            currentLng: newLng,
+            // Keep person dot stationary at their base location
+            currentLat: person.lat,
+            currentLng: person.lng,
+            // Update movement indicator position
+            movementIndicatorLat: newMovementLat,
+            movementIndicatorLng: newMovementLng,
             lastUpdated: now
           };
         });
       });
     };
 
-    animationRef.current = setInterval(animatePeople, 100); // Update every 100ms
+    animationRef.current = setInterval(animateMovementIndicators, 100); // Update every 100ms
 
     return () => {
       if (animationRef.current) {
@@ -220,18 +230,37 @@ function App() {
     }))
   };
 
-  // Create GeoJSON for people
+  // Create GeoJSON for people (stationary)
   const peopleGeoJSON = {
     type: 'FeatureCollection',
     features: people.map(person => ({
       type: 'Feature',
       geometry: {
         type: 'Point',
-        coordinates: [person.currentLng, person.currentLat]
+        coordinates: [person.lng, person.lat] // Use base location for stationary dots
       },
       properties: {
         ...person,
         layerType: 'person'
+      }
+    }))
+  };
+
+  // Create GeoJSON for movement indicators (moving white dots)
+  const movementIndicatorsGeoJSON = {
+    type: 'FeatureCollection',
+    features: people.map(person => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [
+          person.movementIndicatorLng || person.lng,
+          person.movementIndicatorLat || person.lat
+        ]
+      },
+      properties: {
+        ...person,
+        layerType: 'movement_indicator'
       }
     }))
   };
@@ -342,7 +371,7 @@ function App() {
     }
   };
 
-  // People layer
+  // People layer (stationary blue dots)
   const peopleLayer = {
     id: 'people-points',
     type: 'circle',
@@ -359,6 +388,26 @@ function App() {
       'circle-stroke-width': 2,
       'circle-stroke-color': '#ffffff',
       'circle-opacity': 0.8
+    }
+  };
+
+  // Movement indicators layer (small white moving dots)
+  const movementIndicatorsLayer = {
+    id: 'movement-indicators',
+    type: 'circle',
+    paint: {
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        4, 2,
+        8, 3,
+        12, 4
+      ],
+      'circle-color': '#ffffff',
+      'circle-stroke-width': 1,
+      'circle-stroke-color': '#000000',
+      'circle-opacity': 0.7
     }
   };
 
@@ -708,6 +757,9 @@ function App() {
               homeCity: selectedCity.name,
               targetLat: cityLat + (Math.random() - 0.5) * 0.3,
               targetLng: cityLng + (Math.random() - 0.5) * 0.3,
+              // Initialize movement indicator positions
+              movementIndicatorLat: cityLat,
+              movementIndicatorLng: cityLng,
               lastScenario: null,
               lastScenarioTime: 0,
               lastUpdated: Date.now()
@@ -777,8 +829,6 @@ function App() {
       }
     }
   };
-
-
 
   // Check if Mapbox token is configured
   if (MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE') {
@@ -1039,6 +1089,11 @@ function App() {
           {/* People Data Source and Layer */}
           <Source id="people-data" type="geojson" data={peopleGeoJSON}>
             <Layer {...peopleLayer} />
+          </Source>
+
+          {/* Movement Indicators Source and Layer */}
+          <Source id="movement-indicators-data" type="geojson" data={movementIndicatorsGeoJSON}>
+            <Layer {...movementIndicatorsLayer} />
           </Source>
 
           {/* Location Popup */}

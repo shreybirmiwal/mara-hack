@@ -4,7 +4,7 @@ A Python application for managing multiple mining/data center sites and optimizi
 
 ## Features
 
-- **Multi-Site Management**: Create and manage 3 mining sites (Rockdale TX, Cheyenne WY, Butte MT)
+- **Multi-Site Management**: Create and manage 10 mining sites across major US locations
 - **Real-Time Optimization**: Automatically optimize machine allocation based on current prices
 - **Historical Data Tracking**: Store and analyze pricing and performance data
 - **Profitability Analysis**: Calculate optimal configurations for maximum profit
@@ -33,7 +33,7 @@ python main.py
 ```
 
 This will:
-1. Create 3 mining sites in Rockdale TX, Cheyenne WY, and Butte MT
+1. Create 10 mining sites across major US locations (TX, WY, MT, NY, GA, TN, OK, NE, OH, ID)
 2. Fetch current pricing data
 3. Optimize machine allocation for maximum profit
 4. Continue monitoring and reoptimizing every 5 minutes
@@ -45,7 +45,7 @@ python manage_sites.py
 ```
 
 Available commands:
-1. **Create sites** - Set up the 3 mining locations
+1. **Create sites** - Set up the 10 mining locations
 2. **Check current prices** - View latest energy, hash, and token prices
 3. **View inventory** - See available machine types and specifications
 4. **Optimize all sites** - Run optimization algorithm once

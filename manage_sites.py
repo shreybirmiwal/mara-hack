@@ -33,11 +33,18 @@ def display_menu():
     print()
 
 def create_sites(manager):
-    """Create the three sites"""
+    """Create the ten sites"""
     sites_to_create = [
         ("RockdaleTX", "Rockdale, Texas"),
         ("CheyenneWY", "Cheyenne, Wyoming"),
-        ("ButteMT", "Butte, Montana")
+        ("ButteMT", "Butte, Montana"),
+        ("MassenaNY", "Massena, New York"),
+        ("SandersvilleGA", "Sandersville, Georgia"),
+        ("KnoxvilleTN", "Knoxville, Tennessee"),
+        ("MuskogeeOK", "Muskogee, Oklahoma"),
+        ("KearneyNE", "Kearney, Nebraska"),
+        ("MassillonOH", "Massillon, Ohio"),
+        ("BoiseID", "Boise, Idaho")
     ]
     
     print("Creating mining sites...")

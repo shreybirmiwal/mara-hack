@@ -1,453 +1,1289 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import Map, { Source, Layer, Popup } from 'react-map-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import './App.css';
+import peopleData from './people.json';
+
+// Mapbox access token - Get your free token at https://account.mapbox.com/access-tokens/
+// Instructions: 1. Sign up at mapbox.com, 2. Go to access tokens, 3. Create a token, 4. Replace the token below
+const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
+
+// Simple trend chart component
+const MiniChart = ({ data, width = 120, height = 40 }) => {
+  // Ensure data is an array and has at least 2 points
+  if (!data || !Array.isArray(data) || data.length < 2) {
+    return <span className="text-xs text-gray-500">No trend data</span>;
+  }
+
+  // Filter out any invalid values
+  const validData = data.filter(val => typeof val === 'number' && !isNaN(val));
+  if (validData.length < 2) {
+    return <span className="text-xs text-gray-500">Insufficient data</span>;
+  }
+
+  const max = Math.max(...validData);
+  const min = Math.min(...validData);
+  const range = max - min || 1;
+
+  const points = validData.map((value, index) => {
+    const x = (index / (validData.length - 1)) * width;
+    const y = height - ((value - min) / range) * height;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg width={width} height={height} className="inline-block">
+      <polyline
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        points={points}
+      />
+      <circle
+        cx={(validData.length - 1) / (validData.length - 1) * width}
+        cy={height - ((validData[validData.length - 1] - min) / range) * height}
+        r="2"
+        fill="currentColor"
+      />
+    </svg>
+  );
+};
 
 function App() {
-  const [sites, setSites] = useState([]);
+  const [energyData, setEnergyData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({});
-  const [prices, setPrices] = useState([]);
-  const [profitability, setProfitability] = useState({});
-  const [events, setEvents] = useState({});
   const [error, setError] = useState(null);
-  const [optimizing, setOptimizing] = useState(false);
-  const [eventDescription, setEventDescription] = useState('');
-  const [siteProfitability, setSiteProfitability] = useState({});
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isProcessingScenario, setIsProcessingScenario] = useState(false);
+  const [scenarioEffectsActive, setScenarioEffectsActive] = useState(false);
+  const [allEffects, setAllEffects] = useState([]);
 
-  const API_BASE = 'http://127.0.0.1:5001/api';
+  // People simulation state
+  const [people, setPeople] = useState([]);
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  const [showPersonPopup, setShowPersonPopup] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const mapRef = useRef();
+  const animationRef = useRef();
+
+  const [viewState, setViewState] = useState({
+    longitude: -99.9018,
+    latitude: 31.9686,
+    zoom: 6.5,
+    pitch: 45,
+    bearing: 0
+  });
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [sitesRes, statsRes, pricesRes, profitRes, eventsRes] = await Promise.all([
-        axios.get(`${API_BASE}/sites`),
-        axios.get(`${API_BASE}/stats`),
-        axios.get(`${API_BASE}/prices`),
-        axios.get(`${API_BASE}/profitability`),
-        axios.get(`${API_BASE}/events`)
-      ]);
+      const response = await axios.get('http://localhost:5001/api/energy-data');
 
-      setSites(sitesRes.data);
-      setStats(statsRes.data);
-      setPrices(pricesRes.data);
-      setProfitability(profitRes.data);
-      setEvents(eventsRes.data);
-      setError(null);
+      if (response.data.success) {
+        setEnergyData(response.data.data);
+        setError(null);
+      } else {
+        setError('Failed to fetch energy data');
+      }
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError('Failed to fetch data. Make sure the backend is running.');
+      setError('Failed to connect to backend');
     } finally {
       setLoading(false);
     }
   };
 
-  const triggerOptimization = async () => {
-    try {
-      setOptimizing(true);
-      await axios.post(`${API_BASE}/optimize`);
-      // Refresh data after optimization
-      setTimeout(() => {
-        fetchData();
-        setOptimizing(false);
-      }, 2000);
-    } catch (err) {
-      console.error('Error triggering optimization:', err);
-      setOptimizing(false);
+  useEffect(() => {
+    fetchData();
+    // Removed auto-refresh - price changes now only happen when scenarios are run
+  }, []);
+
+  // Initialize people clustered around major Texas cities
+  useEffect(() => {
+    const texasCities = [
+      { name: 'Houston', lat: 29.7604, lng: -95.3698, weight: 30 },
+      { name: 'Dallas', lat: 32.7767, lng: -96.7970, weight: 25 },
+      { name: 'San Antonio', lat: 29.4241, lng: -98.4936, weight: 15 },
+      { name: 'Austin', lat: 30.2672, lng: -97.7431, weight: 15 },
+      { name: 'Fort Worth', lat: 32.7555, lng: -97.3308, weight: 10 },
+      { name: 'El Paso', lat: 31.7619, lng: -106.4850, weight: 5 }
+    ];
+
+    const initializedPeople = peopleData.map(person => {
+      // Choose a city based on weighted random selection
+      const totalWeight = texasCities.reduce((sum, city) => sum + city.weight, 0);
+      let randomWeight = Math.random() * totalWeight;
+      let selectedCity = texasCities[0];
+
+      for (const city of texasCities) {
+        if (randomWeight <= city.weight) {
+          selectedCity = city;
+          break;
+        }
+        randomWeight -= city.weight;
+      }
+
+      // Place person near the selected city with more spread (±0.25 degrees ~= ±28km)
+      const cityLat = selectedCity.lat + (Math.random() - 0.5) * 0.5;
+      const cityLng = selectedCity.lng + (Math.random() - 0.5) * 0.5;
+
+      return {
+        ...person,
+        currentLat: cityLat,
+        currentLng: cityLng,
+        lat: cityLat,
+        lng: cityLng,
+        homeCity: selectedCity.name,
+        targetLat: cityLat + (Math.random() - 0.5) * 0.3,
+        targetLng: cityLng + (Math.random() - 0.5) * 0.3,
+        currentThought: person.defaultThought,
+        lastUpdated: Date.now()
+      };
+    });
+    setPeople(initializedPeople);
+
+    // Send people data to backend
+    if (initializedPeople.length > 0) {
+      axios.post('http://localhost:5001/api/update-people', {
+        people: initializedPeople
+      }).catch(error => {
+        console.error('Error syncing people data with backend:', error);
+      });
+    }
+  }, []);
+
+  // Animate people movement
+  useEffect(() => {
+    const animatePeople = () => {
+      setPeople(prevPeople => {
+        return prevPeople.map(person => {
+          const now = Date.now();
+          const timeDelta = (now - person.lastUpdated) / 1000;
+
+          // Calculate movement towards target
+          const latDiff = person.targetLat - person.currentLat;
+          const lngDiff = person.targetLng - person.currentLng;
+          const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+
+          // If close to target, set new random target
+          if (distance < 0.001) {
+            const newTargetLat = person.lat + (Math.random() - 0.5) * 0.4;
+            const newTargetLng = person.lng + (Math.random() - 0.5) * 0.4;
+            return {
+              ...person,
+              targetLat: newTargetLat,
+              targetLng: newTargetLng,
+              lastUpdated: now
+            };
+          }
+
+          // Move towards target - increased speed by 75x for better visibility (5x faster than previous 15x)
+          const moveSpeed = person.movementSpeed * timeDelta * 75;
+          const newLat = person.currentLat + (latDiff / distance) * moveSpeed;
+          const newLng = person.currentLng + (lngDiff / distance) * moveSpeed;
+
+          return {
+            ...person,
+            currentLat: newLat,
+            currentLng: newLng,
+            lastUpdated: now
+          };
+        });
+      });
+    };
+
+    animationRef.current = setInterval(animatePeople, 100); // Update every 100ms
+
+    return () => {
+      if (animationRef.current) {
+        clearInterval(animationRef.current);
+      }
+    };
+  }, [people.length]); // Only recreate when people array length changes
+
+  // Create GeoJSON for energy locations
+  const energyLocationsGeoJSON = {
+    type: 'FeatureCollection',
+    features: energyData.map(location => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [location.lng, location.lat]
+      },
+      properties: {
+        ...location
+      }
+    }))
+  };
+
+  // Create GeoJSON for people
+  const peopleGeoJSON = {
+    type: 'FeatureCollection',
+    features: people.map(person => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [person.currentLng, person.currentLat]
+      },
+      properties: {
+        ...person,
+        layerType: 'person'
+      }
+    }))
+  };
+
+  // Energy points layer
+  const energyPointsLayer = {
+    id: 'energy-points',
+    type: 'circle',
+    paint: {
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['get', 'price_mwh'],
+        0, 6,
+        50, 10,
+        100, 14,
+        200, 18,
+        500, 22
+      ],
+      'circle-color': [
+        'interpolate',
+        ['linear'],
+        ['get', 'price_mwh'],
+        0, '#22c55e',
+        25, '#eab308',
+        50, '#f97316',
+        100, '#ef4444',
+        200, '#991b1b',
+        500, '#7c2d12'
+      ],
+      'circle-stroke-width': [
+        'case',
+        ['==', ['get', 'scenario_affected'], true],
+        4, // Thicker stroke for affected locations
+        2
+      ],
+      'circle-stroke-color': [
+        'case',
+        ['==', ['get', 'scenario_affected'], true],
+        '#fbbf24', // Gold stroke for affected locations
+        '#ffffff'
+      ],
+      'circle-opacity': [
+        'case',
+        ['==', ['get', 'scenario_affected'], true],
+        1.0, // Full opacity for affected locations
+        0.8
+      ]
     }
   };
 
-  const simulateEvent = async () => {
-    if (!eventDescription.trim()) return;
+  // Scenario effects layer (pulsing animation for affected locations)
+  const scenarioEffectsLayer = {
+    id: 'scenario-effects',
+    type: 'circle',
+    filter: ['==', ['get', 'scenario_affected'], true],
+    paint: {
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['get', 'price_mwh'],
+        0, 15,
+        50, 20,
+        100, 25,
+        200, 30,
+        500, 35
+      ],
+      'circle-color': '#fbbf24',
+      'circle-opacity': 0.3,
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#f59e0b',
+      'circle-stroke-opacity': 0.6
+    }
+  };
 
+  // Heatmap layer
+  const heatmapLayer = {
+    id: 'energy-heatmap',
+    type: 'heatmap',
+    paint: {
+      'heatmap-weight': [
+        'interpolate',
+        ['linear'],
+        ['get', 'price_mwh'],
+        0, 0,
+        200, 1
+      ],
+      'heatmap-intensity': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        0, 1,
+        9, 3
+      ],
+      'heatmap-color': [
+        'interpolate',
+        ['linear'],
+        ['heatmap-density'],
+        0, 'rgba(33,102,172,0)',
+        0.2, 'rgb(103,169,207)',
+        0.4, 'rgb(209,229,240)',
+        0.6, 'rgb(253,219,199)',
+        0.8, 'rgb(239,138,98)',
+        1, 'rgb(178,24,43)'
+      ],
+      'heatmap-radius': 30,
+      'heatmap-opacity': 0.4
+    }
+  };
+
+  // People layer
+  const peopleLayer = {
+    id: 'people-points',
+    type: 'circle',
+    paint: {
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        4, 3,
+        8, 6,
+        12, 8
+      ],
+      'circle-color': '#22d3ee',
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#ffffff',
+      'circle-opacity': 0.8
+    }
+  };
+
+  // Migrate people based on scenario
+  const migratePeopleForScenario = (scenario) => {
+    const scenarioLower = scenario.toLowerCase();
+
+    // Define migration patterns for different scenarios
+    const migrationRules = {
+      houston: /houston|hurricane.*gulf|storm.*houston/,
+      dallas: /dallas|tornado.*dallas|storm.*dallas/,
+      austin: /austin|concert.*austin|sxsw|festival.*austin/,
+      evacuation: /hurricane|tsunami|tornado|wildfire|earthquake|disaster/,
+      attraction: /concert|festival|event|celebration|party/
+    };
+
+    setPeople(prevPeople => {
+      return prevPeople.map(person => {
+        let shouldMigrate = false;
+        let newTarget = { lat: person.targetLat, lng: person.targetLng };
+
+        // Check if scenario affects person's current area
+        const personCity = person.homeCity?.toLowerCase() || '';
+
+        // Evacuation scenarios - people move away from affected areas
+        if (migrationRules.evacuation.test(scenarioLower)) {
+          if (migrationRules.houston.test(scenarioLower) && personCity.includes('houston')) {
+            // Houston people evacuate to Dallas/Austin
+            shouldMigrate = Math.random() < 0.4; // 40% evacuate
+            newTarget = Math.random() < 0.5
+              ? { lat: 32.7767 + (Math.random() - 0.5) * 0.1, lng: -96.7970 + (Math.random() - 0.5) * 0.1 } // Dallas
+              : { lat: 30.2672 + (Math.random() - 0.5) * 0.1, lng: -97.7431 + (Math.random() - 0.5) * 0.1 }; // Austin
+          } else if (migrationRules.dallas.test(scenarioLower) && personCity.includes('dallas')) {
+            // Dallas people evacuate to Houston/Austin
+            shouldMigrate = Math.random() < 0.3; // 30% evacuate
+            newTarget = Math.random() < 0.5
+              ? { lat: 29.7604 + (Math.random() - 0.5) * 0.1, lng: -95.3698 + (Math.random() - 0.5) * 0.1 } // Houston
+              : { lat: 30.2672 + (Math.random() - 0.5) * 0.1, lng: -97.7431 + (Math.random() - 0.5) * 0.1 }; // Austin
+          }
+        }
+
+        // Attraction scenarios - people move towards events
+        if (migrationRules.attraction.test(scenarioLower)) {
+          if (migrationRules.austin.test(scenarioLower) && !personCity.includes('austin')) {
+            // People migrate to Austin for concerts/festivals
+            shouldMigrate = Math.random() < 0.2; // 20% migrate
+            newTarget = { lat: 30.2672 + (Math.random() - 0.5) * 0.1, lng: -97.7431 + (Math.random() - 0.5) * 0.1 };
+          }
+        }
+
+        if (shouldMigrate) {
+          return {
+            ...person,
+            targetLat: newTarget.lat,
+            targetLng: newTarget.lng,
+            lastUpdated: Date.now()
+          };
+        }
+
+        return person;
+      });
+    });
+  };
+
+  // Generate on-demand tweet for a specific person
+  const generatePersonTweet = async (person) => {
     try {
-      const response = await axios.post(`${API_BASE}/simulate-event`, {
-        description: eventDescription
+      const response = await axios.post('http://localhost:5001/api/people-reactions', {
+        scenario: person.lastScenario,
+        people: [person],
+        affected_locations: []
       });
 
-      console.log('Event simulation result:', response.data);
-      setEventDescription('');
+      if (response.data.success && response.data.reactions.length > 0) {
+        const reaction = response.data.reactions[0];
 
-      // Refresh data to show event effects
-      setTimeout(() => {
-        fetchData();
-      }, 1000);
-    } catch (err) {
-      console.error('Error simulating event:', err);
+        // Update this specific person's tweet and possibly location
+        setPeople(prevPeople => {
+          return prevPeople.map(p => {
+            if (p.id === person.id) {
+              return {
+                ...p,
+                currentThought: reaction.reaction,
+                targetLat: reaction.shouldMove ? reaction.newLat : p.targetLat,
+                targetLng: reaction.shouldMove ? reaction.newLng : p.targetLng,
+                lastUpdated: Date.now()
+              };
+            }
+            return p;
+          });
+        });
+
+        // Update the popup immediately
+        setSelectedPerson(prev => ({
+          ...prev,
+          currentThought: reaction.reaction
+        }));
+      }
+    } catch (error) {
+      console.error('Error generating person tweet:', error);
     }
   };
 
-  const clearEvent = async (eventId) => {
+  const onMapClick = (event) => {
+    const features = event.features;
+    if (features && features.length > 0) {
+      const feature = features[0];
+
+      if (feature.layer.id === 'energy-points') {
+        const clickedLocationCode = feature.properties.location_code;
+
+        // Find the most up-to-date location data from energyData
+        const currentLocation = energyData.find(loc => loc.location_code === clickedLocationCode);
+
+        if (currentLocation) {
+          setSelectedLocation({
+            ...currentLocation,
+            coordinates: feature.geometry.coordinates
+          });
+          setShowPopup(true);
+          setShowPersonPopup(false); // Close person popup if open
+        }
+      } else if (feature.layer.id === 'people-points') {
+        const clickedPersonId = feature.properties.id;
+        const currentPerson = people.find(person => person.id === clickedPersonId);
+
+        if (currentPerson) {
+          setSelectedPerson({
+            ...currentPerson,
+            coordinates: feature.geometry.coordinates
+          });
+          setShowPersonPopup(true);
+          setShowPopup(false); // Close energy popup if open
+
+          // Generate an on-demand tweet for this person if there's a recent scenario
+          if (currentPerson.lastScenario && Date.now() - currentPerson.lastScenarioTime < 300000) { // 5 minutes
+            generatePersonTweet(currentPerson);
+          }
+        }
+      }
+    }
+  };
+
+  const formatPrice = (price) => {
+    if (price === null || price === undefined) return 'N/A';
+    return `$${price.toFixed(2)}/MWh`;
+  };
+
+  const formatPriceChange = (change, percent) => {
+    if (Math.abs(change) < 0.01 || Math.abs(percent) < 0.01) return 'No change';
+    const sign = change > 0 ? '+' : '';
+    return `${sign}$${change.toFixed(2)} (${sign}${percent.toFixed(1)}%)`;
+  };
+
+  const getTrendIcon = (trend) => {
+    switch (trend) {
+      case 'rising': return '📈';
+      case 'falling': return '📉';
+      default: return '➡️';
+    }
+  };
+
+  const getTrendColor = (trend) => {
+    switch (trend) {
+      case 'rising': return '#ef4444';
+      case 'falling': return '#22c55e';
+      default: return '#6b7280';
+    }
+  };
+
+  const getScenarioChangeInfo = (location) => {
+    // Debug logging for price change calculation
+    console.log('getScenarioChangeInfo:', {
+      name: location.name,
+      scenario_affected: location.scenario_affected,
+      base_change: location.base_change,
+      base_change_percent: location.base_change_percent,
+      price_change: location.price_change,
+      price_change_percent: location.price_change_percent
+    });
+
+    // For scenario-affected locations, show the change from base price
+    if (location.scenario_affected && location.base_change !== undefined && location.base_change !== null) {
+      return {
+        change: location.base_change,
+        percent: location.base_change_percent || 0,
+        description: `Change from baseline: ${location.base_change > 0 ? '+' : ''}$${location.base_change.toFixed(2)} (${location.base_change > 0 ? '+' : ''}${(location.base_change_percent || 0).toFixed(1)}%)`
+      };
+    }
+    // For non-affected locations, show regular price change
+    return {
+      change: location.price_change || 0,
+      percent: location.price_change_percent || 0,
+      description: formatPriceChange(location.price_change || 0, location.price_change_percent || 0)
+    };
+  };
+
+  // Handle scenario submission
+  const handleScenarioSubmit = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || isProcessingScenario) return;
+
+    setIsProcessingScenario(true);
     try {
-      await axios.delete(`${API_BASE}/events/${eventId}`);
-      fetchData(); // Refresh to show cleared effects
-    } catch (err) {
-      console.error('Error clearing event:', err);
+      // First, process the energy scenario
+      console.log('Sending scenario analysis with', energyData.length, 'current energy locations');
+      const response = await axios.post('http://localhost:5001/api/scenario-analysis', {
+        scenario: chatInput.trim(),
+        current_data: energyData
+      });
+
+      if (response.data.success) {
+        console.log('Scenario analysis response:', {
+          modified_data_count: response.data.modified_data?.length || 0,
+          effects_summary_count: response.data.effects_summary?.length || 0,
+          total_affected_locations: response.data.total_affected_locations || 0,
+          notifications_count: response.data.notifications?.length || 0
+        });
+
+        // Handle multiple notifications for the right panel only
+        if (response.data.notifications && Array.isArray(response.data.notifications)) {
+          const newNotifications = response.data.notifications.map((notif, index) => ({
+            id: Date.now() + index,
+            ...notif,
+            timestamp: new Date()
+          }));
+
+          setNotifications(newNotifications);
+
+          // Auto-dismiss notifications after 20 seconds
+          setTimeout(() => {
+            setNotifications([]);
+          }, 20000);
+        }
+
+        // Update energy data with scenario effects if available
+        if (response.data.modified_data && response.data.modified_data.length > 0) {
+          console.log('Updating energy data with scenario effects:', response.data.modified_data.length, 'locations');
+          setEnergyData(response.data.modified_data);
+          setScenarioEffectsActive(true);
+
+          // Store all effects for the news tab
+          if (response.data.effects_summary) {
+            setAllEffects(prev => [...prev, ...response.data.effects_summary]);
+          }
+
+          // IMMEDIATELY update selectedLocation with new data if a popup is open
+          if (showPopup && selectedLocation) {
+            const updatedLocation = response.data.modified_data.find(loc =>
+              loc.location_code === selectedLocation.location_code ||
+              (loc.name === selectedLocation.name) ||
+              (Math.abs(loc.lat - selectedLocation.lat) < 0.001 && Math.abs(loc.lng - selectedLocation.lng) < 0.001)
+            );
+            if (updatedLocation) {
+              console.log('Updating popup with scenario data:', {
+                location: updatedLocation.name,
+                scenario_affected: updatedLocation.scenario_affected,
+                base_change: updatedLocation.base_change,
+                base_change_percent: updatedLocation.base_change_percent,
+                price_change: updatedLocation.price_change,
+                price_change_percent: updatedLocation.price_change_percent
+              });
+              setSelectedLocation({
+                ...updatedLocation,
+                coordinates: [updatedLocation.lng, updatedLocation.lat]
+              });
+            } else {
+              console.log('Could not find updated location for popup:', selectedLocation.name || selectedLocation.location_code);
+            }
+          }
+        }
+
+        // Store the current scenario and trigger people migration
+        if (chatInput.trim()) {
+          // Mark people as potentially affected by this scenario for tweet generation
+          setPeople(prevPeople => {
+            return prevPeople.map(person => ({
+              ...person,
+              lastScenario: chatInput.trim(),
+              lastScenarioTime: Date.now()
+            }));
+          });
+
+          // Trigger people migration based on scenario
+          migratePeopleForScenario(chatInput.trim());
+        }
+
+        setChatInput('');
+      }
+    } catch (error) {
+      console.error('Error processing scenario:', error);
+      setError('Failed to process scenario. Please try again.');
+    } finally {
+      setIsProcessingScenario(false);
     }
   };
 
-  const formatNumber = (num) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num?.toString() || '0';
+  // Function to reset system to baseline
+  const handleResetToBaseline = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.post('http://localhost:5001/api/reset-to-baseline');
+
+      if (response.data.success) {
+        setEnergyData(response.data.data);
+        setNotifications([]);
+        setAllEffects([]);
+        setScenarioEffectsActive(false);
+        setError(null);
+
+        // Reset people to their default thoughts and redistribute around cities
+        setPeople(prevPeople => {
+          const texasCities = [
+            { name: 'Houston', lat: 29.7604, lng: -95.3698, weight: 30 },
+            { name: 'Dallas', lat: 32.7767, lng: -96.7970, weight: 25 },
+            { name: 'San Antonio', lat: 29.4241, lng: -98.4936, weight: 15 },
+            { name: 'Austin', lat: 30.2672, lng: -97.7431, weight: 15 },
+            { name: 'Fort Worth', lat: 32.7555, lng: -97.3308, weight: 10 },
+            { name: 'El Paso', lat: 31.7619, lng: -106.4850, weight: 5 }
+          ];
+
+          return prevPeople.map(person => {
+            // Choose a city based on weighted random selection
+            const totalWeight = texasCities.reduce((sum, city) => sum + city.weight, 0);
+            let randomWeight = Math.random() * totalWeight;
+            let selectedCity = texasCities[0];
+
+            for (const city of texasCities) {
+              if (randomWeight <= city.weight) {
+                selectedCity = city;
+                break;
+              }
+              randomWeight -= city.weight;
+            }
+
+            // Place person near the selected city with more spread
+            const cityLat = selectedCity.lat + (Math.random() - 0.5) * 0.5;
+            const cityLng = selectedCity.lng + (Math.random() - 0.5) * 0.5;
+
+            return {
+              ...person,
+              currentThought: person.defaultThought,
+              currentLat: cityLat,
+              currentLng: cityLng,
+              lat: cityLat,
+              lng: cityLng,
+              homeCity: selectedCity.name,
+              targetLat: cityLat + (Math.random() - 0.5) * 0.3,
+              targetLng: cityLng + (Math.random() - 0.5) * 0.3,
+              lastScenario: null,
+              lastScenarioTime: 0,
+              lastUpdated: Date.now()
+            };
+          });
+        });
+
+        // Close popups if open
+        setShowPopup(false);
+        setShowPersonPopup(false);
+        setSelectedLocation(null);
+        setSelectedPerson(null);
+
+        // Show success message briefly
+        setNotifications([{
+          id: Date.now(),
+          message: 'System reset to baseline - energy prices and people reactions cleared',
+          type: 'info',
+          region: 'System',
+          impact: 'Low',
+          timestamp: new Date()
+        }]);
+
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => setNotifications([]), 5000);
+      }
+    } catch (error) {
+      console.error('Error resetting to baseline:', error);
+      setError('Failed to reset system to baseline');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formatCurrency = (num) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(num || 0);
+  // Remove specific notification
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  const getPowerLevel = (power) => {
-    if (power > 1500000) return { level: 'High', color: 'bg-red-500' };
-    if (power > 800000) return { level: 'Medium', color: 'bg-orange-500' };
-    return { level: 'Low', color: 'bg-green-500' };
+  // Clear all notifications
+  const clearAllNotifications = () => {
+    setNotifications([]);
   };
 
-  if (loading) {
+  // Function to zoom to a specific location on the map
+  const zoomToLocationByCode = (locationCode, locationName) => {
+    if (mapRef.current) {
+      // Find the location by location_code for precise matching
+      const location = energyData.find(loc => loc.location_code === locationCode);
+      if (location) {
+        setViewState({
+          longitude: location.lng,
+          latitude: location.lat,
+          zoom: 12,
+          pitch: 45,
+          bearing: 0
+        });
+
+        console.log('Zooming to location:', location);
+        setSelectedLocation({
+          ...location,
+          coordinates: [location.lng, location.lat]
+        });
+        setShowPopup(true);
+      } else {
+        console.error('Location not found:', locationCode, locationName);
+      }
+    }
+  };
+
+
+
+  // Check if Mapbox token is configured
+  if (MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE') {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading MARA Sites...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center bg-white p-8 rounded-lg shadow-lg">
-          <div className="text-red-600 text-xl mb-4">⚠️ Error</div>
-          <p className="text-gray-700 mb-4">{error}</p>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center bg-gray-800 p-8 rounded-lg shadow-lg max-w-md">
+          <div className="text-yellow-400 text-4xl mb-4">🗺️</div>
+          <h2 className="text-white text-xl font-bold mb-4">Mapbox Token Required</h2>
+          <p className="text-gray-300 mb-4">
+            To use this application, you need a free Mapbox access token.
+          </p>
+          <div className="text-left bg-gray-700 p-4 rounded text-sm text-gray-300 mb-4">
+            <p className="font-semibold mb-2">Setup Instructions:</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Go to <span className="text-blue-400">account.mapbox.com</span></li>
+              <li>Sign up for a free account</li>
+              <li>Navigate to "Access tokens"</li>
+              <li>Create a new token</li>
+              <li>Add it to your .env file as REACT_APP_MAPBOX_TOKEN</li>
+            </ol>
+          </div>
           <button
-            onClick={fetchData}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            onClick={() => window.open('https://account.mapbox.com/access-tokens/', '_blank')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
           >
-            Retry
+            Get Mapbox Token
           </button>
         </div>
       </div>
     );
   }
 
+  if (loading && energyData.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-white text-xl">Loading energy data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">MARA Site Dashboard</h1>
-              <p className="text-gray-600">San Francisco Mining & Compute Sites</p>
-            </div>
-            <button
-              onClick={fetchData}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Refresh Data
-            </button>
+    <div className="h-screen bg-gray-900 relative overflow-hidden">
+      {/* News/Nodes Side Panel - Always Visible */}
+      <div className="fixed top-0 right-0 w-96 h-full bg-gray-900 bg-opacity-95 backdrop-blur-sm z-40 overflow-y-auto border-l border-gray-700">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-white text-xl font-bold flex items-center space-x-2">
+              <span>📰</span>
+              <span>Live News & Affected Nodes</span>
+            </h2>
+            {/* Close button removed - panel always visible */}
           </div>
-        </div>
-      </header>
 
-      {/* Stats Section */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-2xl font-bold text-blue-600">{stats.total_sites || 0}</div>
-            <div className="text-gray-600">Total Sites</div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-2xl font-bold text-green-600">{stats.active_sites || 0}</div>
-            <div className="text-gray-600">Active Sites</div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-2xl font-bold text-purple-600">{formatNumber(stats.total_power)}</div>
-            <div className="text-gray-600">Total Power (W)</div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-2xl font-bold text-emerald-600">{formatCurrency(stats.total_revenue)}</div>
-            <div className="text-gray-600">Total Revenue</div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-2xl font-bold text-orange-600">
-              {stats.api_connected ? 'Connected' : 'Disconnected'}
-            </div>
-            <div className="text-gray-600">MARA API Status</div>
-          </div>
-        </div>
-
-        {/* Event Simulation */}
-        <div className="bg-white p-6 rounded-lg shadow mb-8">
-          <h2 className="text-xl font-semibold mb-4">🌪️ Event Simulation</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Describe an event:
-                </label>
-                <input
-                  type="text"
-                  value={eventDescription}
-                  onChange={(e) => setEventDescription(e.target.value)}
-                  placeholder="e.g., 'flood in Mission District' or 'heatwave in downtown'"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onKeyPress={(e) => e.key === 'Enter' && simulateEvent()}
-                />
-                <div className="text-xs text-gray-500 mt-1">
-                  Try: flood, heatwave, power outage, earthquake + location (downtown, mission, soma, sunset)
-                </div>
-              </div>
-              <button
-                onClick={simulateEvent}
-                disabled={!eventDescription.trim()}
-                className={`px-4 py-2 rounded text-sm font-medium ${eventDescription.trim()
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-              >
-                🚨 Simulate Event
-              </button>
-            </div>
-
-            <div>
-              <h3 className="font-medium mb-2">Active Events ({Object.keys(events).length})</h3>
-              {Object.keys(events).length > 0 ? (
-                <div className="space-y-2">
-                  {Object.entries(events).map(([eventId, event]) => (
-                    <div key={eventId} className="flex items-center justify-between p-2 bg-red-50 rounded border-l-4 border-red-500">
-                      <div>
-                        <div className="font-medium text-red-800 capitalize">{event.type}</div>
-                        <div className="text-xs text-red-600">
-                          {event.lat?.toFixed(4)}, {event.lng?.toFixed(4)}
-                        </div>
-                      </div>
+          {/* Active Notifications - Keep these on the right panel */}
+          {notifications.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-white text-lg font-semibold mb-3 flex items-center space-x-2">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                <span>Breaking News</span>
+              </h3>
+              <div className="space-y-3">
+                {notifications.map((notification) => (
+                  <div key={notification.id} className="bg-red-800 bg-opacity-50 p-3 rounded-lg border border-red-600">
+                    <div className="text-red-200 text-sm font-medium">
+                      {notification.timestamp.toLocaleTimeString()} | {notification.region || 'Texas Grid'}
+                    </div>
+                    <div className="text-white text-sm mt-1">
+                      {notification.message}
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-red-300">
+                        Impact: {notification.impact || 'Medium'}
+                      </span>
                       <button
-                        onClick={() => clearEvent(eventId)}
-                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                        onClick={() => removeNotification(notification.id)}
+                        className="text-red-300 hover:text-white text-xs"
                       >
-                        Clear
+                        Dismiss
                       </button>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-gray-500 text-sm">No active events</div>
+                  </div>
+                ))}
+              </div>
+
+              {notifications.length > 1 && (
+                <button
+                  onClick={clearAllNotifications}
+                  className="mt-3 w-full bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm"
+                >
+                  Clear All ({notifications.length})
+                </button>
               )}
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Optimization Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Market Prices */}
-          {prices.length > 0 && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Market Prices</h2>
-                <div className="text-xs text-gray-500">Updates every 5 min</div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <div className="text-lg font-bold text-blue-600">${prices[0]?.energy_price?.toFixed(3)}</div>
-                  <div className="text-sm text-gray-600">Energy Price</div>
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-green-600">${prices[0]?.hash_price?.toFixed(2)}</div>
-                  <div className="text-sm text-gray-600">Hash Price</div>
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-purple-600">${prices[0]?.token_price?.toFixed(2)}</div>
-                  <div className="text-sm text-gray-600">Token Price</div>
-                </div>
+          {/* Affected Nodes */}
+          {allEffects.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-white text-lg font-semibold mb-3 flex items-center space-x-2">
+                <span>⚡</span>
+                <span>Affected Nodes ({allEffects.length})</span>
+              </h3>
+              <div className="space-y-2">
+                {allEffects.map((effect, index) => (
+                  <div key={index} className="bg-gray-800 bg-opacity-70 p-3 rounded-lg border border-gray-600 hover:bg-gray-700 cursor-pointer transition-colors duration-200"
+                    onClick={() => {
+                      console.log('Clicked effect:', effect);
+                      // Use location_code for precise matching instead of coordinates
+                      if (effect.location_code) {
+                        console.log('Using location_code:', effect.location_code);
+                        zoomToLocationByCode(effect.location_code, effect.location);
+                      } else {
+                        console.log('Fallback to name search for:', effect.location);
+                        // Fallback to name-based search
+                        const location = energyData.find(loc => loc.name === effect.location);
+                        if (location) {
+                          console.log('Found location by name:', location);
+                          zoomToLocationByCode(location.location_code, location.name);
+                        } else {
+                          console.error('Location not found:', effect.location);
+                        }
+                      }
+                    }}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="text-white font-semibold text-sm">
+                        {effect.location}
+                      </div>
+                      <div className={`text-sm font-bold ${effect.change_percent > 0 ? 'text-red-400' : 'text-green-400'
+                        }`}>
+                        {effect.change_percent > 0 ? '▲' : '▼'} {Math.abs(effect.change_percent)}%
+                      </div>
+                    </div>
+                    <div className="text-gray-300 text-xs mb-2">
+                      {effect.effect}
+                    </div>
+                    <div className="text-xs space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">
+                          ${effect.base_price ? effect.base_price.toFixed(2) : effect.old_price.toFixed(2)} → ${effect.new_price.toFixed(2)}
+                        </span>
+                        <span className="text-blue-400 hover:text-blue-300">
+                          📍 Zoom to location
+                        </span>
+                      </div>
+                      {effect.distance_km !== null && effect.distance_km !== undefined && (
+                        <div className="text-gray-500">
+                          📍 {effect.distance_km.toFixed(1)}km from impact
+                        </div>
+                      )}
+                      {effect.multiplier_used && (
+                        <div className="text-gray-500">
+                          🔢 Multiplier: {effect.multiplier_used}x
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Profitability & Optimization */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Auto-Optimization</h2>
+          {/* Clear All Button */}
+          {(notifications.length > 0 || allEffects.length > 0) && (
+            <div className="space-y-2">
               <button
-                onClick={triggerOptimization}
-                disabled={optimizing}
-                className={`px-4 py-2 rounded text-sm font-medium ${optimizing
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
+                onClick={() => {
+                  setNotifications([]);
+                  setAllEffects([]);
+                }}
+                className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors duration-200"
               >
-                {optimizing ? '🔄 Optimizing...' : '🚀 Optimize Now'}
+                Clear All News & Effects
+              </button>
+
+              <button
+                onClick={handleResetToBaseline}
+                disabled={loading}
+                className="w-full bg-blue-700 hover:bg-blue-600 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Resetting...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔄</span>
+                    <span>Reset to Baseline</span>
+                  </>
+                )}
               </button>
             </div>
+          )}
 
-            {Object.keys(profitability).length > 0 && (
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600 mb-3">Machine Profitability ($/hour):</div>
-                {Object.entries(profitability)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([machine, profit]) => (
-                    <div key={machine} className="flex justify-between items-center">
-                      <span className="text-sm capitalize">
-                        {machine.replace('_', ' ')}
-                      </span>
-                      <span className={`text-sm font-semibold ${profit > 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                        ${profit.toFixed(2)}
-                      </span>
-                    </div>
-                  ))
-                }
-                <div className="text-xs text-gray-500 mt-3">
-                  🤖 Sites auto-optimize every 5 minutes based on profitability
-                </div>
+          {/* No Data State with Reset Option */}
+          {notifications.length === 0 && allEffects.length === 0 && (
+            <div className="text-center text-gray-400 py-8">
+              <div className="text-4xl mb-4">📡</div>
+              <div className="text-lg mb-2">No active news or effects</div>
+              <div className="text-sm mb-4">
+                Run a scenario simulation to see live updates and affected nodes here.
               </div>
-            )}
-          </div>
+
+              <button
+                onClick={handleResetToBaseline}
+                disabled={loading}
+                className="bg-blue-700 hover:bg-blue-600 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2 mx-auto"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Resetting...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔄</span>
+                    <span>Reset to Baseline</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
+      </div>
 
-        {/* Sites List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b">
-            <h2 className="text-xl font-semibold">Sites ({sites.length})</h2>
-          </div>
-          <div className="divide-y">
-            {sites.map((site) => {
-              const powerInfo = getPowerLevel(site.power);
-              return (
-                <div key={site.id} className="p-6 hover:bg-gray-50">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center">
-                      <div className={`w-4 h-4 rounded-full ${powerInfo.color} mr-3`}></div>
-                      <h3 className="text-lg font-semibold">{site.name}</h3>
-                      <span className={`ml-3 px-2 py-1 text-xs rounded ${site.api_key ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                        {site.api_key ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold">{formatNumber(site.power)}W</div>
-                      <div className="text-sm text-gray-500">{powerInfo.level} Power</div>
-                    </div>
-                  </div>
+      {/* Map Container */}
+      <div className="relative h-full">
+        <Map
+          ref={mapRef}
+          {...viewState}
+          onMove={evt => setViewState(evt.viewState)}
+          mapStyle="mapbox://styles/mapbox/dark-v11"
+          mapboxAccessToken={MAPBOX_TOKEN}
+          onClick={onMapClick}
+          interactiveLayerIds={['energy-points', 'people-points']}
+          terrain={{ source: 'mapbox-dem', exaggeration: 1.5 }}
+        >
+          {/* Terrain Source */}
+          <Source
+            id="mapbox-dem"
+            type="raster-dem"
+            url="mapbox://styles/mapbox/outdoors-v12"
+            tileSize={512}
+            maxzoom={14}
+          />
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <div className="text-gray-600">Location</div>
-                      <div className="font-medium">{site.lat.toFixed(4)}, {site.lng.toFixed(4)}</div>
+          {/* Energy Data Sources and Layers */}
+          <Source id="energy-data" type="geojson" data={energyLocationsGeoJSON}>
+            <Layer {...heatmapLayer} />
+            <Layer {...energyPointsLayer} />
+            {scenarioEffectsActive && <Layer {...scenarioEffectsLayer} />}
+          </Source>
+
+          {/* People Data Source and Layer */}
+          <Source id="people-data" type="geojson" data={peopleGeoJSON}>
+            <Layer {...peopleLayer} />
+          </Source>
+
+          {/* Location Popup */}
+          {showPopup && selectedLocation && (
+            <Popup
+              longitude={selectedLocation.coordinates[0]}
+              latitude={selectedLocation.coordinates[1]}
+              onClose={() => setShowPopup(false)}
+              closeButton={true}
+              closeOnClick={false}
+              className="custom-popup"
+            >
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-lg text-gray-800">
+                    {selectedLocation.name}
+                    <div className="text-xs text-gray-600 font-normal">
+                      {selectedLocation.location_code || 'No code'}
                     </div>
-                    {site.api_key && (
-                      <div>
-                        <div className="text-gray-600">API Key</div>
-                        <div className="font-mono text-xs">{site.api_key}</div>
+                  </h3>
+                  {selectedLocation.scenario_affected && (
+                    <span className="bg-yellow-500 text-yellow-900 px-2 py-1 rounded text-xs font-bold animate-pulse">
+                      SCENARIO ACTIVE
+                    </span>
+                  )}
+                </div>
+
+                {selectedLocation.scenario_affected && (
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-3">
+                    <div className="text-sm text-yellow-800">
+                      <strong>Scenario Effect:</strong> {selectedLocation.scenario_effect}
+                    </div>
+                    {selectedLocation.distance_from_impact_km && (
+                      <div className="text-xs text-yellow-700 mt-1">
+                        📍 {selectedLocation.distance_from_impact_km}km from impact center
+                      </div>
+                    )}
+                    {selectedLocation.impact_region && (
+                      <div className="text-xs text-yellow-700">
+                        🗺️ Impact region: {selectedLocation.impact_region.replace('_', ' ').toUpperCase()}
                       </div>
                     )}
                   </div>
+                )}
 
-                  {/* Location Modifiers */}
-                  {site.location_modifiers && (
-                    <div className="mt-3 p-3 bg-blue-50 rounded">
-                      <h4 className="font-medium mb-2 text-blue-800">📍 Location Effects</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                        <div>
-                          <div className="text-gray-600">Energy Cost</div>
-                          <div className={`font-semibold ${site.location_modifiers.energy_cost_modifier > 1 ? 'text-red-600' : 'text-green-600'}`}>
-                            {(site.location_modifiers.energy_cost_modifier * 100).toFixed(0)}%
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-600">Cooling Efficiency</div>
-                          <div className={`font-semibold ${site.location_modifiers.cooling_efficiency > 1 ? 'text-green-600' : 'text-red-600'}`}>
-                            {(site.location_modifiers.cooling_efficiency * 100).toFixed(0)}%
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-600">Hydro Efficiency</div>
-                          <div className={`font-semibold ${site.location_modifiers.hydro_efficiency > 1 ? 'text-green-600' : 'text-red-600'}`}>
-                            {(site.location_modifiers.hydro_efficiency * 100).toFixed(0)}%
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-600">Network Latency</div>
-                          <div className={`font-semibold ${site.location_modifiers.network_latency < 1 ? 'text-green-600' : 'text-red-600'}`}>
-                            {(site.location_modifiers.network_latency * 100).toFixed(0)}%
-                          </div>
-                        </div>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Type:</span>
+                    <span className="font-semibold text-gray-800">{selectedLocation.type || 'Unknown'}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Region:</span>
+                    <span className="font-semibold text-gray-800">{selectedLocation.region || 'West Texas'}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Capacity:</span>
+                    <span className="font-semibold text-gray-800">{selectedLocation.capacity_mw || 100} MW</span>
+                  </div>
+
+                  <hr className="border-gray-200" />
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Current Price:</span>
+                    <span className="font-bold text-lg" style={{
+                      color: selectedLocation.price_mwh > 100 ? '#ef4444' :
+                        selectedLocation.price_mwh > 50 ? '#f97316' :
+                          selectedLocation.price_mwh > 25 ? '#eab308' : '#22c55e'
+                    }}>
+                      {formatPrice(selectedLocation.price_mwh)}
+                    </span>
+                  </div>
+
+                  {selectedLocation.price_change !== undefined && selectedLocation.price_change !== null && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Price Change:</span>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-lg">{getTrendIcon(selectedLocation.trend || 'stable')}</span>
+                        <span
+                          className="font-semibold text-sm"
+                          style={{ color: getTrendColor(selectedLocation.trend || 'stable') }}
+                        >
+                          {getScenarioChangeInfo(selectedLocation).description}
+                        </span>
                       </div>
                     </div>
                   )}
 
-                  {/* Machine Details */}
-                  {site.machines && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded">
-                      <h4 className="font-medium mb-2">Machine Allocation</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        {/* Mining Machines */}
-                        <div>
-                          <h5 className="font-medium text-blue-800 mb-2">⛏️ Bitcoin Mining</h5>
-                          <div className="space-y-1">
-                            {site.machines.air_miners > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Air Miners (1 TH/s)</span>
-                                <span className="font-semibold">{site.machines.air_miners}</span>
-                              </div>
-                            )}
-                            {site.machines.hydro_miners > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Hydro Miners (5 TH/s)</span>
-                                <span className="font-semibold">{site.machines.hydro_miners}</span>
-                              </div>
-                            )}
-                            {site.machines.immersion_miners > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Immersion Miners (10 TH/s)</span>
-                                <span className="font-semibold">{site.machines.immersion_miners}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Compute Machines */}
-                        <div>
-                          <h5 className="font-medium text-purple-800 mb-2">🖥️ AI Compute</h5>
-                          <div className="space-y-1">
-                            {site.machines.gpu_compute > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">GPU Compute (1K tok/hr)</span>
-                                <span className="font-semibold">{site.machines.gpu_compute}</span>
-                              </div>
-                            )}
-                            {site.machines.asic_compute > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">ASIC Compute (50K tok/hr)</span>
-                                <span className="font-semibold">{site.machines.asic_compute}</span>
-                              </div>
-                            )}
-                          </div>
+                  {selectedLocation.price_history && (
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-gray-600">Price Trend:</span>
+                        <div style={{ color: getTrendColor(selectedLocation.trend || 'stable') }}>
+                          <MiniChart data={selectedLocation.price_history} />
                         </div>
                       </div>
-                      {site.machines.total_revenue && (
-                        <div className="mt-3 pt-3 border-t">
-                          <div className="text-green-600 font-semibold">
-                            Total Revenue: {formatCurrency(site.machines.total_revenue)}
-                          </div>
+                      {Array.isArray(selectedLocation.price_history) && selectedLocation.price_history.length > 0 && (
+                        <div className="text-xs text-gray-500">
+                          Last {selectedLocation.price_history.length} data points
                         </div>
                       )}
                     </div>
                   )}
                 </div>
-              );
-            })}
+              </div>
+            </Popup>
+          )}
+
+          {/* Person Popup */}
+          {showPersonPopup && selectedPerson && (
+            <Popup
+              longitude={selectedPerson.coordinates[0]}
+              latitude={selectedPerson.coordinates[1]}
+              onClose={() => setShowPersonPopup(false)}
+              closeButton={true}
+              closeOnClick={false}
+              className="custom-popup people-popup"
+            >
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl">{selectedPerson.emoji}</span>
+                    <div>
+                      <h3 className="font-bold text-lg text-gray-800">{selectedPerson.name}</h3>
+                      <div className="text-sm text-gray-600">{selectedPerson.profession}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div className="bg-blue-50 border-l-4 border-blue-400 p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="text-blue-600">🐦</span>
+                      <span className="text-blue-800 font-semibold">Latest Tweet:</span>
+                    </div>
+                    <div className="text-blue-800 italic">
+                      "{selectedPerson.currentThought}"
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Personality:</span>
+                    <span className="font-semibold text-gray-800 capitalize">
+                      {selectedPerson.personality.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Movement Speed:</span>
+                    <span className="font-semibold text-gray-800">
+                      {selectedPerson.movementSpeed.toFixed(4)} units/sec
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Location:</span>
+                    <span className="font-semibold text-gray-800">
+                      {selectedPerson.currentLat.toFixed(4)}, {selectedPerson.currentLng.toFixed(4)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Popup>
+          )}
+        </Map>
+
+        {/* People Status Display - Top Left */}
+        <div className="absolute top-4 left-4 z-50">
+          <div className="bg-blue-900 bg-opacity-90 text-white px-4 py-2 rounded-lg shadow-lg border border-blue-700">
+            <div className="flex items-center space-x-2">
+              <span className="text-lg">👥</span>
+              <div className="text-sm">
+                <div className="font-bold">{people.length} People Simulated</div>
+                <div className="text-xs opacity-90">
+                  {people.filter(p => p.lastScenario && Date.now() - p.lastScenarioTime < 300000).length} affected by recent events
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Scenario Status Indicator - Top Right */}
+        {scenarioEffectsActive && (
+          <div className="absolute top-4 right-[25rem] z-50">
+            <div className="bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg border border-yellow-500">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                <span className="text-sm font-bold">SCENARIO SIMULATION ACTIVE</span>
+              </div>
+              <div className="text-xs opacity-90 mt-1">
+                People and energy reacting to events
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AI Scenario Chat Interface - Bottom */}
+        <div className="absolute bottom-4 left-4 right-[25rem] z-40">
+          <div className="bg-gray-800 bg-opacity-95 backdrop-blur-sm rounded-lg shadow-2xl border border-gray-700">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="text-white font-semibold text-sm">Simulate Anything...</span>
+                </div>
+                {scenarioEffectsActive && (
+                  <span className="text-yellow-400 text-xs font-bold">
+                    ⚡ SIMULATION RUNNING
+                  </span>
+                )}
+              </div>
+
+              <form onSubmit={handleScenarioSubmit} className="flex space-x-3">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Try: 'What would happen if a hurricane hits the Gulf Coast?'"
+                  className="flex-1 bg-gray-700 text-white px-4 py-3 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none placeholder-gray-400"
+                  disabled={isProcessingScenario}
+                />
+                <button
+                  type="submit"
+                  disabled={isProcessingScenario || !chatInput.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center space-x-2"
+                >
+                  {isProcessingScenario ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Analyzing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🔮</span>
+                      <span>Analyze</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
 

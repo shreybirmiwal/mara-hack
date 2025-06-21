@@ -1,0 +1,462 @@
+/* Mapbox GL styles - Base styles */
+.mapboxgl-popup {
+    max-width: 400px;
+}
+
+.mapboxgl-popup-content {
+    border-radius: 8px !important;
+    padding: 0 !important;
+}
+
+.mapboxgl-popup-close-button {
+    font-size: 18px !important;
+    padding: 4px !important;
+}
+
+.mapboxgl-popup-tip {
+    border-top-color: white !important;
+}
+
+/* Custom scrollbar for sidebar */
+.overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+    background: #374151;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+    background: #6b7280;
+    border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-down {
+    animation: slide-down 0.3s ease-out;
+}
+
+/* Map container */
+.map-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .w-80 {
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        height: 40%;
+    }
+
+    .flex-1 {
+        width: 100%;
+    }
+
+    .absolute.bottom-4.left-4 {
+        bottom: 45%;
+        left: 4px;
+    }
+}
+
+/* Loading states */
+.loading-shimmer {
+    background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Interactive elements */
+.interactive-point {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.interactive-point:hover {
+    transform: scale(1.1);
+}
+
+/* Status indicators */
+.status-indicator {
+    position: relative;
+}
+
+.status-indicator::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Tooltip styles */
+.tooltip {
+    position: relative;
+}
+
+.tooltip:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
+/* Energy type colors */
+.energy-solar {
+    color: #fbbf24;
+}
+
+.energy-wind {
+    color: #34d399;
+}
+
+.energy-traditional {
+    color: #f87171;
+}
+
+.energy-storage {
+    color: #a78bfa;
+}
+
+.energy-peaker {
+    color: #fb923c;
+}
+
+/* Price category backgrounds */
+.price-very-high {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.price-high {
+    background: linear-gradient(135deg, #ea580c, #c2410c);
+}
+
+.price-medium {
+    background: linear-gradient(135deg, #ca8a04, #a16207);
+}
+
+.price-low {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+.price-very-low {
+    background: linear-gradient(135deg, #059669, #047857);
+}
+
+/* Mapbox custom styles */
+.mapboxgl-popup-content {
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.mapboxgl-popup-close-button {
+    font-size: 18px;
+    padding: 4px;
+}
+
+/* Custom popup styling */
+.custom-popup .mapboxgl-popup-content {
+    background: white !important;
+    border-radius: 12px !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2) !important;
+    border: none !important;
+    padding: 0 !important;
+    min-width: 320px !important;
+    max-width: 400px !important;
+    color: #1f2937 !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+    overflow: hidden !important;
+}
+
+/* Ensure all text inside popup is properly styled */
+.custom-popup .mapboxgl-popup-content * {
+    color: inherit !important;
+    text-align: left !important;
+    box-sizing: border-box !important;
+}
+
+.custom-popup .mapboxgl-popup-close-button {
+    background: rgba(0, 0, 0, 0.1) !important;
+    border-radius: 50% !important;
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 16px !important;
+    font-weight: bold !important;
+    color: #374151 !important;
+    right: 8px !important;
+    top: 8px !important;
+    border: none !important;
+    cursor: pointer !important;
+}
+
+.custom-popup .mapboxgl-popup-close-button:hover {
+    background: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Breaking News Animation */
+@keyframes slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-down {
+    animation: slide-down 0.3s ease-out;
+}
+
+/* News ticker styling */
+.news-ticker {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    border-left: 4px solid #7f1d1d;
+    box-shadow: 0 10px 30px rgba(220, 38, 38, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .custom-popup .mapboxgl-popup-content {
+        min-width: 280px !important;
+        max-width: 320px !important;
+    }
+
+    .mapboxgl-popup {
+        max-width: 90vw !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .custom-popup .mapboxgl-popup-content {
+        min-width: 260px !important;
+        max-width: 300px !important;
+    }
+}
+
+/* People Simulation Styles */
+.people-dot {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    animation: float 3s ease-in-out infinite;
+}
+
+.people-dot:hover {
+    transform: scale(1.5);
+    filter: brightness(1.2);
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-2px);
+    }
+}
+
+/* People popup specific styles */
+.people-popup .mapboxgl-popup-content {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+    border: 2px solid #0ea5e9 !important;
+}
+
+.people-popup .mapboxgl-popup-tip {
+    border-top-color: #0ea5e9 !important;
+}
+
+/* People status indicators */
+.people-status-normal {
+    background: linear-gradient(135deg, #22d3ee, #0891b2);
+}
+
+.people-status-excited {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    animation: excited-pulse 1s ease-in-out infinite;
+}
+
+.people-status-worried {
+    background: linear-gradient(135deg, #f87171, #ef4444);
+    animation: worried-shake 0.5s ease-in-out infinite;
+}
+
+.people-status-moving {
+    background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+    animation: moving-glow 2s ease-in-out infinite;
+}
+
+@keyframes excited-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+@keyframes worried-shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-1px);
+    }
+
+    75% {
+        transform: translateX(1px);
+    }
+}
+
+@keyframes moving-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(139, 92, 246, 0.5);
+    }
+
+    50% {
+        box-shadow: 0 0 15px rgba(139, 92, 246, 0.8), 0 0 25px rgba(139, 92, 246, 0.4);
+    }
+}
+
+/* Thought bubble styling */
+.thought-bubble {
+    background: white;
+    border: 2px solid #3b82f6;
+    border-radius: 15px;
+    padding: 8px 12px;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    max-width: 250px;
+    font-style: italic;
+    color: #1e40af;
+}
+
+.thought-bubble::before {
+    content: '💭';
+    position: absolute;
+    left: -8px;
+    top: -8px;
+    font-size: 16px;
+}
+
+/* Personality-based styling */
+.personality-anxious {
+    border-color: #ef4444 !important;
+    color: #dc2626 !important;
+}
+
+.personality-confident {
+    border-color: #10b981 !important;
+    color: #047857 !important;
+}
+
+.personality-creative {
+    border-color: #8b5cf6 !important;
+    color: #7c3aed !important;
+}
+
+.personality-social {
+    border-color: #f59e0b !important;
+    color: #d97706 !important;
+}
+
+.personality-zen {
+    border-color: #06b6d4 !important;
+    color: #0891b2 !important;
+}
+
+/* Migration trail effect */
+.migration-trail {
+    opacity: 0.6;
+    stroke-dasharray: 5, 5;
+    animation: march 1s linear infinite;
+}
+
+@keyframes march {
+    to {
+        stroke-dashoffset: -10;
+    }
+}

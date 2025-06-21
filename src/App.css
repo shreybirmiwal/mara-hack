@@ -196,7 +196,187 @@
   line-height: 1.4;
 }
 
-/* Tooltip Styles */
+/* Site Modal Styles */
+.site-popup .mapboxgl-popup-content {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+.site-modal {
+  background: rgba(15, 20, 25, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  width: 280px;
+  max-height: 400px;
+  overflow: hidden;
+}
+
+.site-modal-content {
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+  color: #e8eaed;
+  font-size: 13px;
+}
+
+.site-modal-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.site-modal-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.site-modal-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.site-modal-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.site-header {
+  margin-bottom: 16px;
+}
+
+.site-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: #ffffff;
+  margin-bottom: 4px;
+  letter-spacing: -0.025em;
+}
+
+.site-location {
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.site-profit {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.profit-amount {
+  font-size: 14px;
+  font-weight: 600;
+  color: #22c55e;
+  margin-bottom: 4px;
+}
+
+.profit-breakdown {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.site-electricity {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.electricity-rate {
+  font-weight: 500;
+  color: #ef4444;
+  font-size: 12px;
+}
+
+.site-section {
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 8px;
+  font-size: 12px;
+  letter-spacing: -0.025em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.machine-compact-grid {
+  space-y: 4px;
+}
+
+.machine-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.machine-label {
+  font-weight: 500;
+  color: #e8eaed;
+  font-size: 11px;
+}
+
+.machine-allocation {
+  color: #22c55e;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.efficiency-compact {
+  space-y: 6px;
+}
+
+.efficiency-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.efficiency-label {
+  min-width: 70px;
+  color: #e8eaed;
+  font-weight: 500;
+}
+
+.efficiency-bar-compact {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  margin: 0 8px;
+  overflow: hidden;
+}
+
+.efficiency-fill-compact {
+  height: 100%;
+  background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.efficiency-percent {
+  color: #22c55e;
+  font-weight: 600;
+  min-width: 35px;
+  text-align: right;
+  font-size: 11px;
+}
+
+/* Tooltip Styles (for hover) */
 .tooltip {
   background: rgba(15, 20, 25, 0.95);
   backdrop-filter: blur(20px);

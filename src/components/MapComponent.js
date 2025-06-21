@@ -49,52 +49,7 @@ const MapComponent = ({ siteData }) => {
     setSelectedSite(site.id === selectedSite ? null : site.id);
   }, [selectedSite]);
 
-  // Render efficiency meter
-  const EfficiencyMeter = ({ label, value, type }) => {
-    const percentage = Math.round(value * 100);
-    return (
-      <div className="efficiency-bar">
-        <div className="efficiency-label">{label}:</div>
-        <div className="efficiency-meter">
-          <div 
-            className="efficiency-fill" 
-            style={{ width: `${percentage}%` }}
-          ></div>
-        </div>
-        <div className="efficiency-value">{percentage}%</div>
-      </div>
-    );
-  };
 
-  // Render machine allocation grid
-  const MachineGrid = ({ allocation, limits }) => {
-    const machines = [
-      { key: 'air_miners', label: 'Air', icon: '🌬️' },
-      { key: 'hydro_miners', label: 'Hydro', icon: '💧' },
-      { key: 'immersion_miners', label: 'Immersion', icon: '🌊' },
-      { key: 'gpu_compute', label: 'GPU', icon: '🖥️' },
-      { key: 'asic_compute', label: 'ASIC', icon: '⚡' }
-    ];
-
-    return (
-      <div className="machine-grid">
-        {machines.map(machine => {
-          const count = allocation[machine.key] || 0;
-          const limit = limits[machine.key] || 0;
-          return (
-            <div key={machine.key} className="machine-item">
-              <span className="machine-type">
-                {machine.icon} {machine.label}
-              </span>
-              <span className={`machine-count ${count === 0 ? 'zero' : ''}`}>
-                {count}/{limit}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
 
   return (
     <div className="map-container" style={{ minHeight: '400px' }}>
@@ -137,54 +92,82 @@ const MapComponent = ({ siteData }) => {
               onClose={() => setSelectedSite(null)}
               closeOnClick={false}
               focusAfterOpen={false}
+              className="site-popup"
             >
-              <div className="tooltip">
-                <div className="tooltip-header">{site.name}</div>
-                <div className="tooltip-location">{site.location}</div>
-                
-                <div className="tooltip-section">
-                  <div className="profit-info">
-                    <div className="profit-main">
+              <div className="site-modal">
+                <div className="site-modal-content">
+                  <div className="site-header">
+                    <div className="site-name">{site.name}</div>
+                    <div className="site-location">{site.location}</div>
+                  </div>
+                  
+                  <div className="site-profit">
+                    <div className="profit-amount">
                       Net Profit: {formatCurrency(site.optimization.net_profit)}
                     </div>
-                    <div className="profit-details">
+                    <div className="profit-breakdown">
                       Revenue: {formatCurrency(site.optimization.total_revenue)} | 
                       Cost: {formatCurrency(site.optimization.total_cost)}
                     </div>
                   </div>
-                </div>
 
-                <div className="tooltip-section">
-                  <div className="electricity-info">
-                    <div className="electricity-cost">
-                      Electricity: ${site.electricity_cost_per_mwh}/MWh ({site.electricity_multiplier}x)
+                  <div className="site-electricity">
+                    <div className="electricity-rate">
+                      Electricity: ${Math.round(site.electricity_cost_per_mwh)}/MWh
                     </div>
                   </div>
-                </div>
 
-                <div className="tooltip-section">
-                  <div className="tooltip-section-title">🏭 Machine Allocation</div>
-                  <MachineGrid 
-                    allocation={site.machine_allocation} 
-                    limits={site.inventory_limits}
-                  />
-                </div>
+                  <div className="site-section">
+                    <div className="section-title">Machine Allocation</div>
+                    <div className="machine-compact-grid">
+                      <div className="machine-row">
+                        <span className="machine-label">Air</span>
+                        <span className="machine-allocation">{site.machine_allocation.air_miners || 0}/{site.inventory_limits.air_miners || 0}</span>
+                      </div>
+                      <div className="machine-row">
+                        <span className="machine-label">Hydro</span>
+                        <span className="machine-allocation">{site.machine_allocation.hydro_miners || 0}/{site.inventory_limits.hydro_miners || 0}</span>
+                      </div>
+                      <div className="machine-row">
+                        <span className="machine-label">Immersion</span>
+                        <span className="machine-allocation">{site.machine_allocation.immersion_miners || 0}/{site.inventory_limits.immersion_miners || 0}</span>
+                      </div>
+                      <div className="machine-row">
+                        <span className="machine-label">GPU</span>
+                        <span className="machine-allocation">{site.machine_allocation.gpu_compute || 0}/{site.inventory_limits.gpu_compute || 0}</span>
+                      </div>
+                      <div className="machine-row">
+                        <span className="machine-label">ASIC</span>
+                        <span className="machine-allocation">{site.machine_allocation.asic_compute || 0}/{site.inventory_limits.asic_compute || 0}</span>
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="tooltip-section">
-                  <div className="tooltip-section-title">📊 Geographic Efficiency</div>
-                  <div className="efficiency-bars">
-                    <EfficiencyMeter 
-                      label="Water" 
-                      value={site.water_availability} 
-                    />
-                    <EfficiencyMeter 
-                      label="Climate" 
-                      value={site.climate_factor} 
-                    />
-                    <EfficiencyMeter 
-                      label="Infrastructure" 
-                      value={site.infrastructure} 
-                    />
+                  <div className="site-section">
+                    <div className="section-title">Geographic Efficiency</div>
+                    <div className="efficiency-compact">
+                      <div className="efficiency-row">
+                        <span className="efficiency-label">Water</span>
+                        <div className="efficiency-bar-compact">
+                          <div className="efficiency-fill-compact" style={{ width: `${Math.round(site.water_availability * 100)}%` }}></div>
+                        </div>
+                        <span className="efficiency-percent">{Math.round(site.water_availability * 100)}%</span>
+                      </div>
+                      <div className="efficiency-row">
+                        <span className="efficiency-label">Climate</span>
+                        <div className="efficiency-bar-compact">
+                          <div className="efficiency-fill-compact" style={{ width: `${Math.round(site.climate_factor * 100)}%` }}></div>
+                        </div>
+                        <span className="efficiency-percent">{Math.round(site.climate_factor * 100)}%</span>
+                      </div>
+                      <div className="efficiency-row">
+                        <span className="efficiency-label">Infrastructure</span>
+                        <div className="efficiency-bar-compact">
+                          <div className="efficiency-fill-compact" style={{ width: `${Math.round(site.infrastructure * 100)}%` }}></div>
+                        </div>
+                        <span className="efficiency-percent">{Math.round(site.infrastructure * 100)}%</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -221,13 +204,13 @@ const MapComponent = ({ siteData }) => {
               <div className="tooltip-section">
                 <div className="electricity-info">
                   <div className="electricity-cost">
-                    ${hoverInfo.site.electricity_cost_per_mwh}/MWh
+                    ${Math.round(hoverInfo.site.electricity_cost_per_mwh)}/MWh
                   </div>
                 </div>
               </div>
 
               <div className="tooltip-section">
-                <div className="tooltip-section-title">🏭 Active Machines</div>
+                <div className="tooltip-section-title">Active Machines</div>
                 <div style={{ fontSize: '12px', color: '#ccc' }}>
                   {Object.entries(hoverInfo.site.machine_allocation)
                     .filter(([_, count]) => count > 0)

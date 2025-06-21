@@ -110,7 +110,7 @@ function App() {
             </div>
             
             <div className="instructions">
-              Hover markers for quick info • Click markers for detailed view
+              Click markers for detailed site information
               <br />
               Last updated: {formatDateTime(siteData.timestamp)}
             </div>

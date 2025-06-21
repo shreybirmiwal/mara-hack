@@ -6,7 +6,6 @@ const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || 'pk.eyJ1Ijoic2hyZXliI
 
 const MapComponent = ({ siteData }) => {
   const [selectedSite, setSelectedSite] = useState(null);
-  const [hoverInfo, setHoverInfo] = useState(null);
 
   const [viewState, setViewState] = useState({
     longitude: -95.7129,
@@ -30,18 +29,6 @@ const MapComponent = ({ siteData }) => {
   // Format currency
   const formatCurrency = useCallback((num) => {
     return `$${num.toLocaleString()}`;
-  }, []);
-
-  // Handle marker hover
-  const onMarkerHover = useCallback((site) => {
-    setHoverInfo({
-      site: site
-    });
-  }, []);
-
-  // Handle marker leave
-  const onMarkerLeave = useCallback(() => {
-    setHoverInfo(null);
   }, []);
 
   // Handle marker click
@@ -72,8 +59,6 @@ const MapComponent = ({ siteData }) => {
           >
             <div
               className={`marker ${getProfitCategory(site.optimization.net_profit)}`}
-              onMouseEnter={() => onMarkerHover(site)}
-              onMouseLeave={onMarkerLeave}
               onClick={() => onMarkerClick(site)}
             />
           </Marker>
@@ -175,59 +160,7 @@ const MapComponent = ({ siteData }) => {
           );
         })()}
 
-        {/* Hover Tooltip */}
-        {hoverInfo && hoverInfo.site && (
-          <Popup
-            longitude={hoverInfo.site.coordinates.lng}
-            latitude={hoverInfo.site.coordinates.lat}
-            anchor="bottom"
-            closeButton={false}
-            closeOnClick={false}
-            focusAfterOpen={false}
-            offset={[0, -10]}
-          >
-            <div className="tooltip">
-              <div className="tooltip-header">{hoverInfo.site.name}</div>
-              <div className="tooltip-location">{hoverInfo.site.location}</div>
-              
-              <div className="tooltip-section">
-                <div className="profit-info">
-                  <div className="profit-main">
-                    {formatCurrency(hoverInfo.site.optimization.net_profit)}
-                  </div>
-                  <div className="profit-details">
-                    Power: {formatNumber(hoverInfo.site.optimization.power_used)}/1,000,000
-                  </div>
-                </div>
-              </div>
 
-              <div className="tooltip-section">
-                <div className="electricity-info">
-                  <div className="electricity-cost">
-                    ${Math.round(hoverInfo.site.electricity_cost_per_mwh)}/MWh
-                  </div>
-                </div>
-              </div>
-
-              <div className="tooltip-section">
-                <div className="tooltip-section-title">Active Machines</div>
-                <div style={{ fontSize: '12px', color: '#ccc' }}>
-                  {Object.entries(hoverInfo.site.machine_allocation)
-                    .filter(([_, count]) => count > 0)
-                    .map(([type, count]) => (
-                      <div key={type}>
-                        {type.replace('_', ' ')}: {count}
-                      </div>
-                    ))
-                  }
-                  {Object.values(hoverInfo.site.machine_allocation).every(count => count === 0) && (
-                    <div style={{ color: '#666' }}>No machines deployed</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Popup>
-        )}
       </Map>
 
       {/* Legend */}

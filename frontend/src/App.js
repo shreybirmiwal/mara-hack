@@ -10,13 +10,17 @@ const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HE
 
 function App() {
   const [energyData, setEnergyData] = useState([]);
-  const [marketStats, setMarketStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [cacheInfo, setCacheInfo] = useState(null);
+
+  // Chat and scenario states
+  const [chatInput, setChatInput] = useState('');
+  const [isProcessingScenario, setIsProcessingScenario] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
   // Map state
   const [viewState, setViewState] = useState({
@@ -29,50 +33,12 @@ function App() {
 
   const mapRef = useRef();
 
-  // West Texas regions for visualization
-  const westTexasRegions = {
-    "type": "FeatureCollection",
-    "features": [
-      {
-        "type": "Feature",
-        "properties": {
-          "name": "Permian Basin",
-          "type": "Oil & Gas Region",
-          "description": "Major oil and natural gas producing region"
-        },
-        "geometry": {
-          "type": "Polygon",
-          "coordinates": [[
-            [-103.5, 32.5], [-101.5, 32.5], [-101.5, 30.5], [-103.5, 30.5], [-103.5, 32.5]
-          ]]
-        }
-      },
-      {
-        "type": "Feature",
-        "properties": {
-          "name": "Wind Corridor",
-          "type": "Renewable Energy Zone",
-          "description": "High wind energy potential area"
-        },
-        "geometry": {
-          "type": "Polygon",
-          "coordinates": [[
-            [-102.0, 33.5], [-99.5, 33.5], [-99.5, 31.5], [-102.0, 31.5], [-102.0, 33.5]
-          ]]
-        }
-      }
-    ]
-  };
-
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [energyResponse, statsResponse] = await Promise.all([
-        axios.get('http://localhost:5001/api/energy-data'),
-        axios.get('http://localhost:5001/api/energy-stats')
-      ]);
+      const energyResponse = await axios.get('http://localhost:5001/api/energy-data');
 
       if (energyResponse.data.success) {
         setEnergyData(energyResponse.data.data || []);
@@ -81,10 +47,6 @@ function App() {
           cached: energyResponse.data.cached,
           cacheAge: energyResponse.data.cache_age_seconds
         });
-      }
-
-      if (statsResponse.data.success) {
-        setMarketStats(statsResponse.data.stats || {});
       }
 
     } catch (error) {
@@ -117,40 +79,7 @@ function App() {
     }))
   };
 
-
-
   // Layer styles
-  const regionLayer = {
-    id: 'regions',
-    type: 'fill',
-    paint: {
-      'fill-color': [
-        'match',
-        ['get', 'type'],
-        'Oil & Gas Region', '#8B4513',
-        'Renewable Energy Zone', '#228B22',
-        '#666666'
-      ],
-      'fill-opacity': 0.1
-    }
-  };
-
-  const regionBorderLayer = {
-    id: 'region-borders',
-    type: 'line',
-    paint: {
-      'line-color': [
-        'match',
-        ['get', 'type'],
-        'Oil & Gas Region', '#8B4513',
-        'Renewable Energy Zone', '#228B22',
-        '#666666'
-      ],
-      'line-width': 2,
-      'line-opacity': 0.8
-    }
-  };
-
   const energyPointsLayer = {
     id: 'energy-points',
     type: 'circle',
@@ -225,10 +154,40 @@ function App() {
     return `$${price.toFixed(2)}/MWh`;
   };
 
-  const getTopExpensiveLocations = () => {
-    return energyData
-      .sort((a, b) => b.price_mwh - a.price_mwh)
-      .slice(0, 5);
+  // Handle scenario submission
+  const handleScenarioSubmit = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || isProcessingScenario) return;
+
+    setIsProcessingScenario(true);
+    try {
+      const response = await axios.post('http://localhost:5001/api/scenario-analysis', {
+        scenario: chatInput.trim(),
+        current_data: energyData
+      });
+
+      if (response.data.success) {
+        // Add notifications from AI response
+        const newNotifications = response.data.notifications.map((notification, index) => ({
+          id: Date.now() + index,
+          ...notification,
+          timestamp: new Date()
+        }));
+
+        setNotifications(prev => [...newNotifications, ...prev].slice(0, 10)); // Keep only last 10
+        setChatInput('');
+      }
+    } catch (error) {
+      console.error('Error processing scenario:', error);
+      setError('Failed to process scenario. Please try again.');
+    } finally {
+      setIsProcessingScenario(false);
+    }
+  };
+
+  // Remove notification
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   // Check if Mapbox token is configured
@@ -276,7 +235,7 @@ function App() {
               West Texas Energy Pricing Map
             </h1>
             <p className="text-gray-300 text-sm">
-              Real-time ERCOT energy pricing data • Interactive topographical visualization
+              Real-time ERCOT energy pricing data • AI scenario analysis
             </p>
           </div>
           <div className="text-right">
@@ -304,13 +263,6 @@ function App() {
             onClick={onMapClick}
             interactiveLayerIds={['energy-points']}
           >
-
-            {/* West Texas regions */}
-            <Source id="regions" type="geojson" data={westTexasRegions}>
-              <Layer {...regionLayer} />
-              <Layer {...regionBorderLayer} />
-            </Source>
-
             {/* Energy data heatmap */}
             <Source id="energy-heatmap" type="geojson" data={energyLocationsGeoJSON}>
               <Layer {...heatmapLayer} />
@@ -430,93 +382,123 @@ function App() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Sidebar */}
-        <div className="w-80 bg-gray-800 overflow-y-auto">
-          {/* Market Overview */}
-          <div className="p-4 border-b border-gray-700">
-            <h2 className="text-lg font-bold text-blue-400 mb-3">Market Snapshot</h2>
-            {marketStats ? (
-              <div className="space-y-3">
-                <div className="bg-gray-700 rounded-lg p-3">
-                  <div className="text-xs text-gray-400 uppercase tracking-wide">Current Moment</div>
-                  <div className="text-lg font-bold text-white">
-                    {marketStats.data_timestamp ?
-                      new Date(marketStats.data_timestamp).toLocaleString() : 'N/A'}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-700 rounded-lg p-3">
-                    <div className="text-xs text-gray-400 uppercase tracking-wide">Locations</div>
-                    <div className="text-xl font-bold text-white">{marketStats.locations_count || 0}</div>
-                  </div>
-                  <div className="bg-gray-700 rounded-lg p-3">
-                    <div className="text-xs text-gray-400 uppercase tracking-wide">Avg Price</div>
-                    <div className="text-xl font-bold text-blue-400">
-                      {formatPrice(marketStats.avg_price)}
+          {/* Notification Popups */}
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 space-y-2 max-w-md z-50">
+            {notifications.map((notification) => (
+              <div
+                key={notification.id}
+                className={`bg-gray-800 bg-opacity-95 border-l-4 rounded-lg p-4 shadow-lg animate-slide-down ${notification.type === 'alert' ? 'border-red-500' :
+                  notification.type === 'warning' ? 'border-yellow-500' :
+                    notification.type === 'info' ? 'border-blue-500' :
+                      'border-green-500'
+                  }`}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center mb-2">
+                      <span className={`text-lg mr-2 ${notification.type === 'alert' ? 'text-red-400' :
+                        notification.type === 'warning' ? 'text-yellow-400' :
+                          notification.type === 'info' ? 'text-blue-400' :
+                            'text-green-400'
+                        }`}>
+                        {notification.type === 'alert' ? '🚨' :
+                          notification.type === 'warning' ? '⚠️' :
+                            notification.type === 'info' ? 'ℹ️' : '✅'}
+                      </span>
+                      <h4 className="font-bold text-white text-sm">{notification.title}</h4>
                     </div>
+                    <p className="text-gray-300 text-sm">{notification.message}</p>
+                    {notification.impact && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Impact: {notification.impact}
+                      </p>
+                    )}
                   </div>
-                  <div className="bg-red-900 bg-opacity-50 rounded-lg p-3">
-                    <div className="text-xs text-gray-400 uppercase tracking-wide">Max Price</div>
-                    <div className="text-xl font-bold text-red-400">
-                      {formatPrice(marketStats.max_price)}
-                    </div>
-                  </div>
-                  <div className="bg-green-900 bg-opacity-50 rounded-lg p-3">
-                    <div className="text-xs text-gray-400 uppercase tracking-wide">Min Price</div>
-                    <div className="text-xl font-bold text-green-400">
-                      {formatPrice(marketStats.min_price)}
-                    </div>
-                  </div>
+                  <button
+                    onClick={() => removeNotification(notification.id)}
+                    className="text-gray-400 hover:text-white ml-2"
+                  >
+                    ×
+                  </button>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat Sidebar */}
+        <div className="w-80 bg-gray-800 flex flex-col">
+          {/* Chat Header */}
+          <div className="p-4 border-b border-gray-700">
+            <h2 className="text-lg font-bold text-blue-400 mb-2">AI Scenario Analysis</h2>
+            <p className="text-gray-400 text-sm">
+              Ask what would happen if certain events occurred in West Texas energy markets.
+            </p>
+          </div>
+
+          {/* Chat Input */}
+          <div className="p-4 border-b border-gray-700">
+            <form onSubmit={handleScenarioSubmit}>
+              <div className="space-y-3">
+                <textarea
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="What would happen if a hurricane hit the Gulf Coast? Or if wind speeds doubled in West Texas?"
+                  className="w-full h-24 bg-gray-700 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400 resize-none focus:outline-none focus:border-blue-500"
+                  disabled={isProcessingScenario}
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim() || isProcessingScenario}
+                  className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
+                >
+                  {isProcessingScenario ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Analyzing...
+                    </div>
+                  ) : (
+                    'Analyze Scenario'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Recent Notifications History */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <h3 className="text-md font-bold text-gray-300 mb-3">Recent Scenarios</h3>
+            {notifications.length === 0 ? (
+              <div className="text-gray-500 text-sm text-center py-8">
+                <div className="text-4xl mb-2">🤖</div>
+                <p>No scenarios analyzed yet.</p>
+                <p className="mt-2">Try asking about weather events, infrastructure failures, or market changes!</p>
+              </div>
             ) : (
-              <div className="text-gray-400">Loading market data...</div>
+              <div className="space-y-3">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className="bg-gray-700 rounded-lg p-3 text-sm"
+                  >
+                    <div className="flex items-center mb-1">
+                      <span className="text-xs text-gray-400">
+                        {notification.timestamp.toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <div className="font-medium text-white mb-1">{notification.title}</div>
+                    <div className="text-gray-300">{notification.message}</div>
+                    {notification.impact && (
+                      <div className="text-xs text-blue-400 mt-1">
+                        {notification.impact}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-
-          {/* Top Expensive Locations */}
-          <div className="p-4 border-b border-gray-700">
-            <h3 className="text-md font-bold text-red-400 mb-3">Top 5 Highest Prices</h3>
-            <div className="space-y-2">
-              {getTopExpensiveLocations().map((location, index) => (
-                <div
-                  key={location.location_code}
-                  className="bg-gray-700 rounded-lg p-3 cursor-pointer hover:bg-gray-600 transition-colors"
-                  onClick={() => {
-                    setSelectedLocation({
-                      ...location,
-                      coordinates: [location.lng, location.lat]
-                    });
-                    setShowPopup(true);
-                    setViewState(prev => ({
-                      ...prev,
-                      longitude: location.lng,
-                      latitude: location.lat,
-                      zoom: 9
-                    }));
-                  }}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="font-medium text-white text-sm">
-                        #{index + 1} {location.location_name}
-                      </div>
-                      <div className="text-xs text-gray-400">{location.type}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-red-400">
-                        {formatPrice(location.price_mwh)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-
 
           {/* Error Display */}
           {error && (

@@ -1,6 +1,6 @@
-# West Texas Energy Pricing Map 🗺️⚡
+# West Texas Energy Pricing Map 🗺️⚡🤖
 
-An interactive topographical map visualization showing real-time energy pricing data from the Texas ERCOT grid. Built with React, Mapbox GL JS, and GridStatus API integration.
+An interactive topographical map visualization showing real-time energy pricing data from the Texas ERCOT grid with AI-powered scenario analysis. Built with React, Mapbox GL JS, GridStatus API, and OpenRouter AI integration.
 
 ![West Texas Energy Map](https://via.placeholder.com/800x400/1f2937/60a5fa?text=West+Texas+Energy+Pricing+Map)
 
@@ -8,15 +8,17 @@ An interactive topographical map visualization showing real-time energy pricing 
 
 - **Interactive Topographical Map**: Satellite imagery with terrain elevation
 - **Real-time Energy Data**: Live ERCOT pricing data from GridStatus API
+- **AI Scenario Analysis**: Ask "what would happen if..." questions about energy markets
+- **Smart Notifications**: AI-generated alerts about potential market impacts
 - **Multiple Visualizations**: 
   - Colored points showing pricing levels
   - Heatmap overlay for price intensity
-  - Regional boundaries (Permian Basin, Wind Corridor)
+  - Interactive notification popups
 - **Interactive Elements**:
   - Click points for detailed location info
   - Zoom/pan controls
-  - Price legend and market statistics
-  - Top 5 highest price locations
+  - Price legend
+  - AI chat interface for scenario planning
 - **Responsive Design**: Works on desktop and mobile
 - **Auto-refresh**: Data updates every 5 minutes
 
@@ -25,6 +27,7 @@ An interactive topographical map visualization showing real-time energy pricing 
 ### Backend
 - **Flask** - Python web framework
 - **GridStatus API** - Real-time energy market data
+- **OpenRouter AI** - AI scenario analysis via Llama models
 - **Pandas** - Data processing and analysis
 - **Flask-CORS** - Cross-origin resource sharing
 
@@ -40,6 +43,7 @@ An interactive topographical map visualization showing real-time energy pricing 
 - Python 3.8+
 - Node.js 16+
 - Mapbox account (free)
+- OpenRouter account (free) - for AI scenario analysis
 
 ### 1. Clone and Setup
 
@@ -53,6 +57,13 @@ cd mara
 ```bash
 cd backend
 pip install -r requirements.txt
+
+# Copy environment template and add your API keys
+cp .env.example .env
+# Edit .env and add your API keys:
+# - GRIDSTATUS_API_KEY (optional - uses mock data if not provided)
+# - OPENROUTER_API_KEY (required for AI scenarios)
+
 python server.py
 ```
 
@@ -93,13 +104,25 @@ Replace the token in `frontend/src/App.js`:
 const MAPBOX_TOKEN = 'your_token_here';
 ```
 
+### 6. Get OpenRouter API Key (for AI Scenarios)
+
+1. Sign up at [openrouter.ai](https://openrouter.ai/keys)
+2. Go to **Keys** section
+3. Click "Create Key"
+4. Name it "MARA Energy Scenarios"
+5. Copy the API key
+6. Add it to your `backend/.env` file:
+   ```
+   OPENROUTER_API_KEY=your_openrouter_key_here
+   ```
+
 ## API Endpoints
 
 ### Backend Endpoints
 
 - `GET /api/health` - Health check
 - `GET /api/energy-data` - Current energy pricing data
-- `GET /api/energy-stats` - Market statistics
+- `POST /api/scenario-analysis` - AI scenario analysis
 - `GET /api/cache-info` - Cache status information
 
 ### Example Response
@@ -133,7 +156,8 @@ const MAPBOX_TOKEN = 'your_token_here';
 ### Environment Variables
 
 #### Backend
-- `GRIDSTATUS_API_KEY` - Your GridStatus API key (already configured)
+- `GRIDSTATUS_API_KEY` - Your GridStatus API key (optional - uses mock data if not provided)
+- `OPENROUTER_API_KEY` - Your OpenRouter API key (required for AI scenarios)
 
 #### Frontend
 - `REACT_APP_MAPBOX_TOKEN` - Your Mapbox access token
@@ -172,13 +196,17 @@ mapStyle="mapbox://styles/mapbox/satellite-streets-v12"
 - 🟢 **Green**: Low ($0-25/MWh)
 - ⚫ **Gray**: Zero/Negative
 
-### Regional Overlays
-- **Permian Basin**: Major oil & gas producing region
-- **Wind Corridor**: High wind energy potential area
+### AI Scenario Analysis
+- **Natural Language**: Ask questions like "What would happen if a hurricane hit the Gulf Coast?"
+- **Smart Notifications**: AI generates realistic impact alerts
+- **Market Predictions**: Analysis of price changes and grid stability
+- **Regional Focus**: Specific impacts on West Texas energy infrastructure
 
 ### Interactive Elements
 - **Click Points**: View detailed location information
 - **Heatmap**: Shows price intensity across regions
+- **AI Chat**: Scenario planning interface
+- **Notification System**: Pop-up alerts with impact analysis
 - **Controls**: Zoom in/out, reset view
 - **Auto-refresh**: Data updates every 5 minutes
 

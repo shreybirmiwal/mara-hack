@@ -235,12 +235,13 @@
 
 /* Custom popup styling */
 .custom-popup .mapboxgl-popup-content {
-    background: white;
+    background: white !important;
     border-radius: 12px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
     border: none;
     padding: 0;
     min-width: 250px;
+    color: #1f2937 !important;
 }
 
 .custom-popup .mapboxgl-popup-close-button {

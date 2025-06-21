@@ -8,20 +8,59 @@ import './App.css';
 // Instructions: 1. Sign up at mapbox.com, 2. Go to access tokens, 3. Create a token, 4. Replace the token below
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
 
+// Simple trend chart component
+const MiniChart = ({ data, width = 120, height = 40 }) => {
+  // Ensure data is an array and has at least 2 points
+  if (!data || !Array.isArray(data) || data.length < 2) {
+    return <span className="text-xs text-gray-500">No trend data</span>;
+  }
+
+  // Filter out any invalid values
+  const validData = data.filter(val => typeof val === 'number' && !isNaN(val));
+  if (validData.length < 2) {
+    return <span className="text-xs text-gray-500">Insufficient data</span>;
+  }
+
+  const max = Math.max(...validData);
+  const min = Math.min(...validData);
+  const range = max - min || 1;
+
+  const points = validData.map((value, index) => {
+    const x = (index / (validData.length - 1)) * width;
+    const y = height - ((value - min) / range) * height;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg width={width} height={height} className="inline-block">
+      <polyline
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        points={points}
+      />
+      <circle
+        cx={(validData.length - 1) / (validData.length - 1) * width}
+        cy={height - ((validData[validData.length - 1] - min) / range) * height}
+        r="2"
+        fill="currentColor"
+      />
+    </svg>
+  );
+};
+
 function App() {
   const [energyData, setEnergyData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
-
-  // Chat and scenario states
+  const [notification, setNotification] = useState(null);
   const [chatInput, setChatInput] = useState('');
   const [isProcessingScenario, setIsProcessingScenario] = useState(false);
-  const [notification, setNotification] = useState(null); // Single notification
 
-  // Map state
+  const mapRef = useRef();
+
   const [viewState, setViewState] = useState({
     longitude: -99.9018,
     latitude: 31.9686,
@@ -30,23 +69,20 @@ function App() {
     bearing: 0
   });
 
-  const mapRef = useRef();
-
   const fetchData = async () => {
     try {
       setLoading(true);
-      setError(null);
+      const response = await axios.get('http://localhost:5001/api/energy-data');
 
-      const energyResponse = await axios.get('http://localhost:5001/api/energy-data');
-
-      if (energyResponse.data.success) {
-        setEnergyData(energyResponse.data.data || []);
-        setLastUpdated(new Date().toLocaleTimeString());
+      if (response.data.success) {
+        setEnergyData(response.data.data);
+        setError(null);
+      } else {
+        setError('Failed to fetch energy data');
       }
-
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setError(`Failed to fetch data: ${error.message}`);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to connect to backend');
     } finally {
       setLoading(false);
     }
@@ -54,7 +90,9 @@ function App() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 300000); // Refresh every 5 minutes
+
+    // Auto-refresh every 30 seconds to see price changes
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -63,18 +101,17 @@ function App() {
     type: 'FeatureCollection',
     features: energyData.map(location => ({
       type: 'Feature',
-      properties: {
-        ...location,
-        size: Math.max(10, Math.min(50, (location.price_mwh + 50) / 10)) // Scale point size
-      },
       geometry: {
         type: 'Point',
         coordinates: [location.lng, location.lat]
+      },
+      properties: {
+        ...location
       }
     }))
   };
 
-  // Layer styles
+  // Energy points layer
   const energyPointsLayer = {
     id: 'energy-points',
     type: 'circle',
@@ -83,25 +120,28 @@ function App() {
         'interpolate',
         ['linear'],
         ['get', 'price_mwh'],
-        0, 8,
-        50, 15,
-        100, 25,
-        200, 35
+        0, 6,
+        50, 10,
+        100, 14,
+        200, 18
       ],
       'circle-color': [
-        'case',
-        ['>', ['get', 'price_mwh'], 100], '#ef4444',
-        ['>', ['get', 'price_mwh'], 50], '#f97316',
-        ['>', ['get', 'price_mwh'], 25], '#eab308',
-        ['>', ['get', 'price_mwh'], 0], '#22c55e',
-        '#6b7280'
+        'interpolate',
+        ['linear'],
+        ['get', 'price_mwh'],
+        0, '#22c55e',
+        25, '#eab308',
+        50, '#f97316',
+        100, '#ef4444',
+        200, '#991b1b'
       ],
-      'circle-opacity': 0.8,
       'circle-stroke-width': 2,
-      'circle-stroke-color': '#ffffff'
+      'circle-stroke-color': '#ffffff',
+      'circle-opacity': 0.8
     }
   };
 
+  // Heatmap layer
   const heatmapLayer = {
     id: 'energy-heatmap',
     type: 'heatmap',
@@ -113,7 +153,13 @@ function App() {
         0, 0,
         200, 1
       ],
-      'heatmap-intensity': 0.6,
+      'heatmap-intensity': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        0, 1,
+        9, 3
+      ],
       'heatmap-color': [
         'interpolate',
         ['linear'],
@@ -147,6 +193,28 @@ function App() {
   const formatPrice = (price) => {
     if (price === null || price === undefined) return 'N/A';
     return `$${price.toFixed(2)}/MWh`;
+  };
+
+  const formatPriceChange = (change, percent) => {
+    if (change === 0) return 'No change';
+    const sign = change > 0 ? '+' : '';
+    return `${sign}$${change.toFixed(2)} (${sign}${percent.toFixed(1)}%)`;
+  };
+
+  const getTrendIcon = (trend) => {
+    switch (trend) {
+      case 'rising': return '📈';
+      case 'falling': return '📉';
+      default: return '➡️';
+    }
+  };
+
+  const getTrendColor = (trend) => {
+    switch (trend) {
+      case 'rising': return '#ef4444';
+      case 'falling': return '#22c55e';
+      default: return '#6b7280';
+    }
   };
 
   // Handle scenario submission
@@ -296,17 +364,31 @@ function App() {
               closeOnClick={false}
               className="custom-popup"
             >
-              <div className="p-3 min-w-64">
-                <h3 className="font-bold text-lg text-gray-800 mb-2">
+              <div className="p-4 min-w-80">
+                <h3 className="font-bold text-lg text-gray-800 mb-3">
                   {selectedLocation.name}
                 </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center">
                     <span className="text-gray-600">Type:</span>
-                    <span className="font-semibold text-gray-800">{selectedLocation.type}</span>
+                    <span className="font-semibold text-gray-800">{selectedLocation.type || 'Unknown'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Price:</span>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Region:</span>
+                    <span className="font-semibold text-gray-800">{selectedLocation.region || 'West Texas'}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Capacity:</span>
+                    <span className="font-semibold text-gray-800">{selectedLocation.capacity_mw || 100} MW</span>
+                  </div>
+
+                  <hr className="border-gray-200" />
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Current Price:</span>
                     <span className="font-bold text-lg" style={{
                       color: selectedLocation.price_mwh > 100 ? '#ef4444' :
                         selectedLocation.price_mwh > 50 ? '#f97316' :
@@ -315,14 +397,37 @@ function App() {
                       {formatPrice(selectedLocation.price_mwh)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Region:</span>
-                    <span className="font-semibold text-gray-800">{selectedLocation.region}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Capacity:</span>
-                    <span className="font-semibold text-gray-800">{selectedLocation.capacity_mw} MW</span>
-                  </div>
+
+                  {selectedLocation.price_change !== undefined && selectedLocation.price_change !== null && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Price Change:</span>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-lg">{getTrendIcon(selectedLocation.trend || 'stable')}</span>
+                        <span
+                          className="font-semibold text-sm"
+                          style={{ color: getTrendColor(selectedLocation.trend || 'stable') }}
+                        >
+                          {formatPriceChange(selectedLocation.price_change || 0, selectedLocation.price_change_percent || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedLocation.price_history && (
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-gray-600">Price Trend:</span>
+                        <div style={{ color: getTrendColor(selectedLocation.trend || 'stable') }}>
+                          <MiniChart data={selectedLocation.price_history} />
+                        </div>
+                      </div>
+                      {Array.isArray(selectedLocation.price_history) && selectedLocation.price_history.length > 0 && (
+                        <div className="text-xs text-gray-500">
+                          Last {selectedLocation.price_history.length} data points
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </Popup>
@@ -330,67 +435,44 @@ function App() {
         </Map>
 
         {/* AI Scenario Chat Interface - Bottom */}
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-2xl px-4">
-          <form onSubmit={handleScenarioSubmit} className="bg-gray-800/90 backdrop-blur-sm rounded-lg shadow-2xl border border-gray-700">
+        <div className="absolute bottom-4 left-4 right-4 z-40">
+          <div className="bg-gray-800 bg-opacity-95 backdrop-blur-sm rounded-lg shadow-2xl border border-gray-700">
             <div className="p-4">
-              <div className="flex space-x-3">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Ask about energy scenarios... (e.g., 'What if a hurricane hits the Gulf Coast?')"
-                    className="w-full bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={isProcessingScenario}
-                  />
-                </div>
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-white font-semibold text-sm">AI Scenario Analysis</span>
+              </div>
+
+              <form onSubmit={handleScenarioSubmit} className="flex space-x-3">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Ask: 'What would happen if a hurricane hits the Gulf Coast?'"
+                  className="flex-1 bg-gray-700 text-white px-4 py-3 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none placeholder-gray-400"
+                  disabled={isProcessingScenario}
+                />
                 <button
                   type="submit"
                   disabled={isProcessingScenario || !chatInput.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center space-x-2"
                 >
                   {isProcessingScenario ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       <span>Analyzing...</span>
                     </>
                   ) : (
                     <>
-                      <span>🤖</span>
+                      <span>🔮</span>
                       <span>Analyze</span>
                     </>
                   )}
                 </button>
-              </div>
+              </form>
             </div>
-          </form>
-        </div>
-
-        {/* Status Info - Top Right */}
-        <div className="absolute top-4 right-4 bg-gray-800/90 backdrop-blur-sm text-white p-3 rounded-lg shadow-lg text-sm">
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-            <span>Live Energy Data</span>
           </div>
-          {lastUpdated && (
-            <div className="text-gray-300 text-xs mt-1">
-              Updated: {lastUpdated}
-            </div>
-          )}
         </div>
-
-        {/* Error Display */}
-        {error && (
-          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg max-w-md text-center">
-            <p className="font-medium">{error}</p>
-            <button
-              onClick={() => setError(null)}
-              className="mt-2 text-sm underline hover:no-underline"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

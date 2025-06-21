@@ -41,13 +41,7 @@ else:
         api_key=OPENROUTER_API_KEY,
     )
 
-# Cache for API responses
-_cache = {
-    'energy_data': None,
-    'energy_stats': None,
-    'last_fetch_time': None,
-    'cache_duration': 10  # 10 seconds cache for demo (set back to 300 for production)
-}
+# Removed cache - fetch fresh data every time
 
 # Price history storage (in production, this would be a database)
 _price_history = {
@@ -102,13 +96,7 @@ LOCATION_DATA = {
     'ERCOT_ZONE4': {'lat': 29.4241, 'lng': -98.4936, 'name': 'South Central Zone', 'type': 'Load Zone', 'capacity_mw': 1800, 'region': 'South Texas'}
 }
 
-def is_cache_valid():
-    """Check if cache is still valid"""
-    if _cache['last_fetch_time'] is None:
-        return False
-    
-    time_diff = time.time() - _cache['last_fetch_time']
-    return time_diff < _cache['cache_duration']
+# Cache functions removed - no caching
 
 def add_to_price_history(data):
     """Add current data to price history"""
@@ -188,7 +176,7 @@ def calculate_price_changes(current_data):
     
     return current_data
 
-def fetch_and_cache_data():
+def fetch_fresh_data():
     """Fetch data from API and cache it"""
     try:
         # If no API client, use mock data
@@ -343,17 +331,12 @@ def fetch_and_cache_data():
                 }
             }
         
-        # Update cache
-        _cache['energy_data'] = processed_data
-        _cache['energy_stats'] = stats
-        _cache['last_fetch_time'] = time.time()
-        
-        logger.info(f"Cached {len(processed_data)} locations for timestamp: {stats.get('data_timestamp', 'N/A')}")
-        return True
+        logger.info(f"Processed {len(processed_data)} locations for timestamp: {stats.get('data_timestamp', 'N/A')}")
+        return processed_data
         
     except Exception as e:
-        logger.error(f"Error fetching and caching data: {str(e)}")
-        return False
+        logger.error(f"Error fetching fresh data: {str(e)}")
+        return []
 
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -365,27 +348,15 @@ def hello():
 
 @app.route('/api/energy-data', methods=['GET'])
 def get_energy_data():
-    """Fetch real-time energy pricing data from ERCOT (with caching)"""
+    """Fetch real-time energy pricing data from ERCOT (no caching)"""
     try:
-        # Check if we need to fetch fresh data
-        if not is_cache_valid():
-            success = fetch_and_cache_data()
-            if not success and _cache['energy_data'] is None:
-                return jsonify({
-                    'success': False,
-                    'error': 'Failed to fetch data and no cached data available',
-                    'message': 'API temporarily unavailable'
-                }), 503
-        
-        processed_data = _cache['energy_data'] or []
+        processed_data = fetch_fresh_data()
         
         return jsonify({
             'success': True,
             'data': processed_data,
             'total_locations': len(processed_data),
             'timestamp': datetime.now().isoformat(),
-            'cached': is_cache_valid(),
-            'cache_age_seconds': int(time.time() - _cache['last_fetch_time']) if _cache['last_fetch_time'] else 0,
             'price_range': {
                 'min': min([d['price_mwh'] for d in processed_data]) if processed_data else 0,
                 'max': max([d['price_mwh'] for d in processed_data]) if processed_data else 0,
@@ -403,22 +374,31 @@ def get_energy_data():
 
 @app.route('/api/energy-stats', methods=['GET'])
 def get_energy_stats():
-    """Get summary statistics for energy data (with caching)"""
+    """Get summary statistics for energy data (no caching)"""
     try:
-        # Use cached stats if available
-        if is_cache_valid() and _cache['energy_stats']:
-            return jsonify(_cache['energy_stats'])
+        processed_data = fetch_fresh_data()
         
-        # If no valid cache, try to fetch fresh data
-        if not is_cache_valid():
-            success = fetch_and_cache_data()
-            if not success and _cache['energy_stats'] is None:
-                return jsonify({
-                    'error': 'API temporarily unavailable',
-                    'message': 'Failed to get energy statistics'
-                }), 503
+        if processed_data:
+            prices = [d['price_mwh'] for d in processed_data]
+            stats = {
+                'total_records': len(processed_data),
+                'locations_count': len(processed_data),
+                'avg_price': round(sum(prices) / len(prices), 2),
+                'max_price': round(max(prices), 2),
+                'min_price': round(min(prices), 2),
+                'data_timestamp': datetime.now().isoformat()
+            }
+        else:
+            stats = {
+                'total_records': 0,
+                'locations_count': 0,
+                'avg_price': 0,
+                'max_price': 0,
+                'min_price': 0,
+                'data_timestamp': datetime.now().isoformat()
+            }
         
-        return jsonify(_cache['energy_stats'] or {})
+        return jsonify(stats)
         
     except Exception as e:
         logger.error(f"Error getting energy stats: {str(e)}")
@@ -426,19 +406,6 @@ def get_energy_stats():
             'error': str(e),
             'message': 'Failed to get energy statistics'
         }), 500
-
-@app.route('/api/cache-info', methods=['GET'])
-def get_cache_info():
-    """Get information about the current cache status"""
-    return jsonify({
-        'cache_valid': is_cache_valid(),
-        'last_fetch_time': datetime.fromtimestamp(_cache['last_fetch_time']).isoformat() if _cache['last_fetch_time'] else None,
-        'cache_age_seconds': int(time.time() - _cache['last_fetch_time']) if _cache['last_fetch_time'] else None,
-        'cache_duration': _cache['cache_duration'],
-        'has_energy_data': _cache['energy_data'] is not None,
-        'has_energy_stats': _cache['energy_stats'] is not None,
-        'data_count': len(_cache['energy_data']) if _cache['energy_data'] else 0
-    })
 
 def apply_scenario_effects(scenario, current_data):
     """
@@ -777,10 +744,11 @@ if __name__ == '__main__':
     print("🚀 MARA Energy Backend Starting...")
     print("📡 Server running on http://localhost:5001")
     print("⚡ GridStatus API integration enabled")
-    print("💾 Data caching enabled (5 minute intervals)")
+    print("🔄 No caching - fresh data every request")
     
-    # Pre-populate cache on startup
-    logger.info("Pre-populating cache on startup...")
-    fetch_and_cache_data()
+    # Test data fetch on startup
+    logger.info("Testing data fetch on startup...")
+    test_data = fetch_fresh_data()
+    logger.info(f"✅ Startup test successful - {len(test_data)} locations loaded")
     
     app.run(host='0.0.0.0', port=5001, debug=True) 

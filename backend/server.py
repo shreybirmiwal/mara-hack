@@ -450,24 +450,15 @@ def analyze_scenario():
                 'error': 'No scenario provided'
             }), 400
             
-        if not OPENROUTER_API_KEY:
-            # Return a mock notification for demo purposes
-            mock_notification = {
-                'message': f"West Texas wind farms see 250% surge in production due to {scenario.lower()}",
-                'type': 'alert',
-                'region': 'West Texas',
-                'impact': 'High'
-            }
+        # Check if we have a valid AI client
+        if not OPENROUTER_API_KEY or ai_client is None:
             return jsonify({
-                'success': True,
-                'notification': mock_notification
-            })
+                'success': False,
+                'error': 'AI service not configured. Please set OPENROUTER_API_KEY in environment variables.',
+                'instructions': 'Get a free API key at https://openrouter.ai/keys'
+            }), 503
         
-        # Initialize OpenAI client for OpenRouter
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=OPENROUTER_API_KEY,
-        )
+        logger.info(f"Processing AI scenario analysis: {scenario}")
         
         # Create a comprehensive prompt for realistic scenario analysis
         prompt = f"""You are an energy market analyst specializing in Texas ERCOT grid operations. 
@@ -495,21 +486,36 @@ EXAMPLES OF GOOD ALERTS:
 Return ONLY the alert message, nothing else."""
 
         # Call the AI model
-        response = client.chat.completions.create(
-            model="meta-llama/llama-3.3-70b-instruct",
-            messages=[
-                {
-                    "role": "system", 
-                    "content": "You are a professional energy market news analyst. Generate realistic, specific breaking news alerts about energy market impacts."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
+        try:
+            response = ai_client.chat.completions.create(
+                model="meta-llama/llama-3.1-8b-instruct:free",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are a professional energy market news analyst. Generate realistic, specific breaking news alerts about energy market impacts."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                max_tokens=150,
+                temperature=0.7,
+                extra_headers={
+                    "HTTP-Referer": "http://localhost:3000",
+                    "X-Title": "MARA Energy Analysis"
                 }
-            ],
-            max_tokens=150,
-            temperature=0.7
-        )
+            )
+        except Exception as ai_error:
+            if "401" in str(ai_error) or "auth" in str(ai_error).lower():
+                return jsonify({
+                    'success': False,
+                    'error': 'OpenRouter API key is invalid or expired.',
+                    'instructions': 'Please get a new API key at https://openrouter.ai/keys and update your .env file',
+                    'details': str(ai_error)
+                }), 401
+            else:
+                raise ai_error
         
         ai_message = response.choices[0].message.content.strip()
         

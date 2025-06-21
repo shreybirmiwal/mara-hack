@@ -364,7 +364,7 @@ function App() {
               closeOnClick={false}
               className="custom-popup"
             >
-              <div className="p-4 min-w-80">
+              <div className="p-4">
                 <h3 className="font-bold text-lg text-gray-800 mb-3">
                   {selectedLocation.name}
                 </h3>

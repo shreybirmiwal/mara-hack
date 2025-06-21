@@ -60,7 +60,6 @@ function App() {
   const [chatInput, setChatInput] = useState('');
   const [isProcessingScenario, setIsProcessingScenario] = useState(false);
   const [scenarioEffectsActive, setScenarioEffectsActive] = useState(false);
-  const [showNewsTab, setShowNewsTab] = useState(true); // Always show news panel
   const [allEffects, setAllEffects] = useState([]);
 
   // People simulation state
@@ -103,17 +102,48 @@ function App() {
     // Removed auto-refresh - price changes now only happen when scenarios are run
   }, []);
 
-  // Initialize people with random movement targets
+  // Initialize people clustered around major Texas cities
   useEffect(() => {
-    const initializedPeople = peopleData.map(person => ({
-      ...person,
-      currentLat: person.lat,
-      currentLng: person.lng,
-      targetLat: person.lat + (Math.random() - 0.5) * 0.1,
-      targetLng: person.lng + (Math.random() - 0.5) * 0.1,
-      currentThought: person.defaultThought,
-      lastUpdated: Date.now()
-    }));
+    const texasCities = [
+      { name: 'Houston', lat: 29.7604, lng: -95.3698, weight: 30 },
+      { name: 'Dallas', lat: 32.7767, lng: -96.7970, weight: 25 },
+      { name: 'San Antonio', lat: 29.4241, lng: -98.4936, weight: 15 },
+      { name: 'Austin', lat: 30.2672, lng: -97.7431, weight: 15 },
+      { name: 'Fort Worth', lat: 32.7555, lng: -97.3308, weight: 10 },
+      { name: 'El Paso', lat: 31.7619, lng: -106.4850, weight: 5 }
+    ];
+
+    const initializedPeople = peopleData.map(person => {
+      // Choose a city based on weighted random selection
+      const totalWeight = texasCities.reduce((sum, city) => sum + city.weight, 0);
+      let randomWeight = Math.random() * totalWeight;
+      let selectedCity = texasCities[0];
+
+      for (const city of texasCities) {
+        if (randomWeight <= city.weight) {
+          selectedCity = city;
+          break;
+        }
+        randomWeight -= city.weight;
+      }
+
+      // Place person near the selected city with some randomness (±0.1 degrees ~= ±11km)
+      const cityLat = selectedCity.lat + (Math.random() - 0.5) * 0.2;
+      const cityLng = selectedCity.lng + (Math.random() - 0.5) * 0.2;
+
+      return {
+        ...person,
+        currentLat: cityLat,
+        currentLng: cityLng,
+        lat: cityLat,
+        lng: cityLng,
+        homeCity: selectedCity.name,
+        targetLat: cityLat + (Math.random() - 0.5) * 0.1,
+        targetLng: cityLng + (Math.random() - 0.5) * 0.1,
+        currentThought: person.defaultThought,
+        lastUpdated: Date.now()
+      };
+    });
     setPeople(initializedPeople);
 
     // Send people data to backend
@@ -332,6 +362,106 @@ function App() {
     }
   };
 
+  // Migrate people based on scenario
+  const migratePeopleForScenario = (scenario) => {
+    const scenarioLower = scenario.toLowerCase();
+
+    // Define migration patterns for different scenarios
+    const migrationRules = {
+      houston: /houston|hurricane.*gulf|storm.*houston/,
+      dallas: /dallas|tornado.*dallas|storm.*dallas/,
+      austin: /austin|concert.*austin|sxsw|festival.*austin/,
+      evacuation: /hurricane|tsunami|tornado|wildfire|earthquake|disaster/,
+      attraction: /concert|festival|event|celebration|party/
+    };
+
+    setPeople(prevPeople => {
+      return prevPeople.map(person => {
+        let shouldMigrate = false;
+        let newTarget = { lat: person.targetLat, lng: person.targetLng };
+
+        // Check if scenario affects person's current area
+        const personCity = person.homeCity?.toLowerCase() || '';
+
+        // Evacuation scenarios - people move away from affected areas
+        if (migrationRules.evacuation.test(scenarioLower)) {
+          if (migrationRules.houston.test(scenarioLower) && personCity.includes('houston')) {
+            // Houston people evacuate to Dallas/Austin
+            shouldMigrate = Math.random() < 0.4; // 40% evacuate
+            newTarget = Math.random() < 0.5
+              ? { lat: 32.7767 + (Math.random() - 0.5) * 0.1, lng: -96.7970 + (Math.random() - 0.5) * 0.1 } // Dallas
+              : { lat: 30.2672 + (Math.random() - 0.5) * 0.1, lng: -97.7431 + (Math.random() - 0.5) * 0.1 }; // Austin
+          } else if (migrationRules.dallas.test(scenarioLower) && personCity.includes('dallas')) {
+            // Dallas people evacuate to Houston/Austin
+            shouldMigrate = Math.random() < 0.3; // 30% evacuate
+            newTarget = Math.random() < 0.5
+              ? { lat: 29.7604 + (Math.random() - 0.5) * 0.1, lng: -95.3698 + (Math.random() - 0.5) * 0.1 } // Houston
+              : { lat: 30.2672 + (Math.random() - 0.5) * 0.1, lng: -97.7431 + (Math.random() - 0.5) * 0.1 }; // Austin
+          }
+        }
+
+        // Attraction scenarios - people move towards events
+        if (migrationRules.attraction.test(scenarioLower)) {
+          if (migrationRules.austin.test(scenarioLower) && !personCity.includes('austin')) {
+            // People migrate to Austin for concerts/festivals
+            shouldMigrate = Math.random() < 0.2; // 20% migrate
+            newTarget = { lat: 30.2672 + (Math.random() - 0.5) * 0.1, lng: -97.7431 + (Math.random() - 0.5) * 0.1 };
+          }
+        }
+
+        if (shouldMigrate) {
+          return {
+            ...person,
+            targetLat: newTarget.lat,
+            targetLng: newTarget.lng,
+            lastUpdated: Date.now()
+          };
+        }
+
+        return person;
+      });
+    });
+  };
+
+  // Generate on-demand tweet for a specific person
+  const generatePersonTweet = async (person) => {
+    try {
+      const response = await axios.post('http://localhost:5001/api/people-reactions', {
+        scenario: person.lastScenario,
+        people: [person],
+        affected_locations: []
+      });
+
+      if (response.data.success && response.data.reactions.length > 0) {
+        const reaction = response.data.reactions[0];
+
+        // Update this specific person's tweet and possibly location
+        setPeople(prevPeople => {
+          return prevPeople.map(p => {
+            if (p.id === person.id) {
+              return {
+                ...p,
+                currentThought: reaction.reaction,
+                targetLat: reaction.shouldMove ? reaction.newLat : p.targetLat,
+                targetLng: reaction.shouldMove ? reaction.newLng : p.targetLng,
+                lastUpdated: Date.now()
+              };
+            }
+            return p;
+          });
+        });
+
+        // Update the popup immediately
+        setSelectedPerson(prev => ({
+          ...prev,
+          currentThought: reaction.reaction
+        }));
+      }
+    } catch (error) {
+      console.error('Error generating person tweet:', error);
+    }
+  };
+
   const onMapClick = (event) => {
     const features = event.features;
     if (features && features.length > 0) {
@@ -362,6 +492,11 @@ function App() {
           });
           setShowPersonPopup(true);
           setShowPopup(false); // Close energy popup if open
+
+          // Generate an on-demand tweet for this person if there's a recent scenario
+          if (currentPerson.lastScenario && Date.now() - currentPerson.lastScenarioTime < 300000) { // 5 minutes
+            generatePersonTweet(currentPerson);
+          }
         }
       }
     }
@@ -419,12 +554,20 @@ function App() {
     setIsProcessingScenario(true);
     try {
       // First, process the energy scenario
+      console.log('Sending scenario analysis with', energyData.length, 'current energy locations');
       const response = await axios.post('http://localhost:5001/api/scenario-analysis', {
         scenario: chatInput.trim(),
         current_data: energyData
       });
 
       if (response.data.success) {
+        console.log('Scenario analysis response:', {
+          modified_data_count: response.data.modified_data?.length || 0,
+          effects_summary_count: response.data.effects_summary?.length || 0,
+          total_affected_locations: response.data.total_affected_locations || 0,
+          notifications_count: response.data.notifications?.length || 0
+        });
+
         // Handle multiple notifications for the right panel only
         if (response.data.notifications && Array.isArray(response.data.notifications)) {
           const newNotifications = response.data.notifications.map((notif, index) => ({
@@ -442,7 +585,8 @@ function App() {
         }
 
         // Update energy data with scenario effects if available
-        if (response.data.modified_data) {
+        if (response.data.modified_data && response.data.modified_data.length > 0) {
+          console.log('Updating energy data with scenario effects:', response.data.modified_data.length, 'locations');
           setEnergyData(response.data.modified_data);
           setScenarioEffectsActive(true);
 
@@ -467,52 +611,19 @@ function App() {
           }
         }
 
-        // Generate people reactions to the scenario
-        if (people.length > 0) {
-          try {
-            const peopleReactionResponse = await axios.post('http://localhost:5001/api/people-reactions', {
-              scenario: chatInput.trim(),
-              people: people,
-              affected_locations: response.data.effects_summary || []
-            });
+        // Store the current scenario and trigger people migration
+        if (chatInput.trim()) {
+          // Mark people as potentially affected by this scenario for tweet generation
+          setPeople(prevPeople => {
+            return prevPeople.map(person => ({
+              ...person,
+              lastScenario: chatInput.trim(),
+              lastScenarioTime: Date.now()
+            }));
+          });
 
-            if (peopleReactionResponse.data.success) {
-              const reactions = peopleReactionResponse.data.reactions;
-
-              // Update people with their reactions and new locations
-              setPeople(prevPeople => {
-                return prevPeople.map(person => {
-                  const reaction = reactions.find(r => r.id === person.id);
-                  if (reaction) {
-                    return {
-                      ...person,
-                      currentThought: reaction.reaction,
-                      targetLat: reaction.shouldMove ? reaction.newLat : person.targetLat,
-                      targetLng: reaction.shouldMove ? reaction.newLng : person.targetLng,
-                      lastUpdated: Date.now()
-                    };
-                  }
-                  return person;
-                });
-              });
-
-              // Add migration news if available
-              if (peopleReactionResponse.data.migration_news && peopleReactionResponse.data.migration_news.length > 0) {
-                const migrationNotifications = peopleReactionResponse.data.migration_news.map((news, index) => ({
-                  id: Date.now() + 1000 + index,
-                  ...news,
-                  timestamp: new Date()
-                }));
-
-                setNotifications(prev => [...prev, ...migrationNotifications]);
-              }
-
-              console.log(`Generated reactions for ${reactions.length} people, ${peopleReactionResponse.data.total_relocating} are relocating`);
-            }
-          } catch (peopleError) {
-            console.error('Error generating people reactions:', peopleError);
-            // Don't fail the whole scenario if people reactions fail
-          }
+          // Trigger people migration based on scenario
+          migratePeopleForScenario(chatInput.trim());
         }
 
         setChatInput('');
@@ -538,15 +649,50 @@ function App() {
         setScenarioEffectsActive(false);
         setError(null);
 
-        // Reset people to their default thoughts and original locations
+        // Reset people to their default thoughts and redistribute around cities
         setPeople(prevPeople => {
-          return prevPeople.map(person => ({
-            ...person,
-            currentThought: person.defaultThought,
-            targetLat: person.lat + (Math.random() - 0.5) * 0.1,
-            targetLng: person.lng + (Math.random() - 0.5) * 0.1,
-            lastUpdated: Date.now()
-          }));
+          const texasCities = [
+            { name: 'Houston', lat: 29.7604, lng: -95.3698, weight: 30 },
+            { name: 'Dallas', lat: 32.7767, lng: -96.7970, weight: 25 },
+            { name: 'San Antonio', lat: 29.4241, lng: -98.4936, weight: 15 },
+            { name: 'Austin', lat: 30.2672, lng: -97.7431, weight: 15 },
+            { name: 'Fort Worth', lat: 32.7555, lng: -97.3308, weight: 10 },
+            { name: 'El Paso', lat: 31.7619, lng: -106.4850, weight: 5 }
+          ];
+
+          return prevPeople.map(person => {
+            // Choose a city based on weighted random selection
+            const totalWeight = texasCities.reduce((sum, city) => sum + city.weight, 0);
+            let randomWeight = Math.random() * totalWeight;
+            let selectedCity = texasCities[0];
+
+            for (const city of texasCities) {
+              if (randomWeight <= city.weight) {
+                selectedCity = city;
+                break;
+              }
+              randomWeight -= city.weight;
+            }
+
+            // Place person near the selected city
+            const cityLat = selectedCity.lat + (Math.random() - 0.5) * 0.2;
+            const cityLng = selectedCity.lng + (Math.random() - 0.5) * 0.2;
+
+            return {
+              ...person,
+              currentThought: person.defaultThought,
+              currentLat: cityLat,
+              currentLng: cityLng,
+              lat: cityLat,
+              lng: cityLng,
+              homeCity: selectedCity.name,
+              targetLat: cityLat + (Math.random() - 0.5) * 0.1,
+              targetLng: cityLng + (Math.random() - 0.5) * 0.1,
+              lastScenario: null,
+              lastScenarioTime: 0,
+              lastUpdated: Date.now()
+            };
+          });
         });
 
         // Close popups if open
@@ -612,31 +758,7 @@ function App() {
     }
   };
 
-  // Legacy function for backward compatibility
-  const zoomToLocation = (lat, lng, name) => {
-    if (mapRef.current) {
-      setViewState({
-        longitude: lng,
-        latitude: lat,
-        zoom: 12,
-        pitch: 45,
-        bearing: 0
-      });
 
-      // Find the location in energyData and show popup - use more precise matching
-      const location = energyData.find(loc =>
-        Math.abs(loc.lat - lat) < 0.001 && Math.abs(loc.lng - lng) < 0.001 && loc.name === name
-      ) || energyData.find(loc => loc.name === name);
-
-      if (location) {
-        setSelectedLocation({
-          ...location,
-          coordinates: [lng, lat]
-        });
-        setShowPopup(true);
-      }
-    }
-  };
 
   // Check if Mapbox token is configured
   if (MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE') {
@@ -1030,8 +1152,8 @@ function App() {
                 <div className="space-y-3 text-sm">
                   <div className="bg-blue-50 border-l-4 border-blue-400 p-3">
                     <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-blue-600">💭</span>
-                      <span className="text-blue-800 font-semibold">Current Thought:</span>
+                      <span className="text-blue-600">🐦</span>
+                      <span className="text-blue-800 font-semibold">Latest Tweet:</span>
                     </div>
                     <div className="text-blue-800 italic">
                       "{selectedPerson.currentThought}"
@@ -1072,7 +1194,7 @@ function App() {
               <div className="text-sm">
                 <div className="font-bold">{people.length} People Simulated</div>
                 <div className="text-xs opacity-90">
-                  {people.filter(p => p.currentThought !== p.defaultThought).length} reacting to events
+                  {people.filter(p => p.lastScenario && Date.now() - p.lastScenarioTime < 300000).length} affected by recent events
                 </div>
               </div>
             </div>

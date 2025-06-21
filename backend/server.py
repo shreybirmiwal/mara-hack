@@ -838,6 +838,11 @@ def analyze_scenario():
                 'error': 'No scenario provided'
             }), 400
         
+        # If current_data is empty, get fresh base data first
+        if not current_data:
+            logger.info("No current data provided, generating base data for scenario analysis")
+            current_data = get_static_base_data()
+        
         # Apply scenario effects to the data first
         modified_data, effects_applied = apply_scenario_effects(scenario, current_data)
         

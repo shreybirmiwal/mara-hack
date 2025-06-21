@@ -127,9 +127,9 @@ function App() {
         randomWeight -= city.weight;
       }
 
-      // Place person near the selected city with some randomness (±0.1 degrees ~= ±11km)
-      const cityLat = selectedCity.lat + (Math.random() - 0.5) * 0.2;
-      const cityLng = selectedCity.lng + (Math.random() - 0.5) * 0.2;
+      // Place person near the selected city with more spread (±0.25 degrees ~= ±28km)
+      const cityLat = selectedCity.lat + (Math.random() - 0.5) * 0.5;
+      const cityLng = selectedCity.lng + (Math.random() - 0.5) * 0.5;
 
       return {
         ...person,
@@ -138,8 +138,8 @@ function App() {
         lat: cityLat,
         lng: cityLng,
         homeCity: selectedCity.name,
-        targetLat: cityLat + (Math.random() - 0.5) * 0.1,
-        targetLng: cityLng + (Math.random() - 0.5) * 0.1,
+        targetLat: cityLat + (Math.random() - 0.5) * 0.3,
+        targetLng: cityLng + (Math.random() - 0.5) * 0.3,
         currentThought: person.defaultThought,
         lastUpdated: Date.now()
       };
@@ -171,8 +171,8 @@ function App() {
 
           // If close to target, set new random target
           if (distance < 0.001) {
-            const newTargetLat = person.lat + (Math.random() - 0.5) * 0.2;
-            const newTargetLng = person.lng + (Math.random() - 0.5) * 0.2;
+            const newTargetLat = person.lat + (Math.random() - 0.5) * 0.4;
+            const newTargetLng = person.lng + (Math.random() - 0.5) * 0.4;
             return {
               ...person,
               targetLat: newTargetLat,
@@ -674,9 +674,9 @@ function App() {
               randomWeight -= city.weight;
             }
 
-            // Place person near the selected city
-            const cityLat = selectedCity.lat + (Math.random() - 0.5) * 0.2;
-            const cityLng = selectedCity.lng + (Math.random() - 0.5) * 0.2;
+            // Place person near the selected city with more spread
+            const cityLat = selectedCity.lat + (Math.random() - 0.5) * 0.5;
+            const cityLng = selectedCity.lng + (Math.random() - 0.5) * 0.5;
 
             return {
               ...person,
@@ -686,8 +686,8 @@ function App() {
               lat: cityLat,
               lng: cityLng,
               homeCity: selectedCity.name,
-              targetLat: cityLat + (Math.random() - 0.5) * 0.1,
-              targetLng: cityLng + (Math.random() - 0.5) * 0.1,
+              targetLat: cityLat + (Math.random() - 0.5) * 0.3,
+              targetLng: cityLng + (Math.random() - 0.5) * 0.3,
               lastScenario: null,
               lastScenarioTime: 0,
               lastUpdated: Date.now()

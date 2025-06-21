@@ -181,8 +181,8 @@ function App() {
             };
           }
 
-          // Move towards target
-          const moveSpeed = person.movementSpeed * timeDelta;
+          // Move towards target - increased speed by 15x for better visibility
+          const moveSpeed = person.movementSpeed * timeDelta * 15;
           const newLat = person.currentLat + (latDiff / distance) * moveSpeed;
           const newLng = person.currentLng + (lngDiff / distance) * moveSpeed;
 
@@ -508,7 +508,7 @@ function App() {
   };
 
   const formatPriceChange = (change, percent) => {
-    if (change === 0 || Math.abs(percent) < 0.1) return 'No change';
+    if (Math.abs(change) < 0.01 || Math.abs(percent) < 0.01) return 'No change';
     const sign = change > 0 ? '+' : '';
     return `${sign}$${change.toFixed(2)} (${sign}${percent.toFixed(1)}%)`;
   };
@@ -530,12 +530,22 @@ function App() {
   };
 
   const getScenarioChangeInfo = (location) => {
+    // Debug logging for price change calculation
+    console.log('getScenarioChangeInfo:', {
+      name: location.name,
+      scenario_affected: location.scenario_affected,
+      base_change: location.base_change,
+      base_change_percent: location.base_change_percent,
+      price_change: location.price_change,
+      price_change_percent: location.price_change_percent
+    });
+
     // For scenario-affected locations, show the change from base price
-    if (location.scenario_affected && location.base_change !== undefined) {
+    if (location.scenario_affected && location.base_change !== undefined && location.base_change !== null) {
       return {
         change: location.base_change,
-        percent: location.base_change_percent,
-        description: `Change from baseline: ${location.base_change > 0 ? '+' : ''}$${location.base_change.toFixed(2)} (${location.base_change > 0 ? '+' : ''}${location.base_change_percent.toFixed(1)}%)`
+        percent: location.base_change_percent || 0,
+        description: `Change from baseline: ${location.base_change > 0 ? '+' : ''}$${location.base_change.toFixed(2)} (${location.base_change > 0 ? '+' : ''}${(location.base_change_percent || 0).toFixed(1)}%)`
       };
     }
     // For non-affected locations, show regular price change
@@ -599,14 +609,24 @@ function App() {
           if (showPopup && selectedLocation) {
             const updatedLocation = response.data.modified_data.find(loc =>
               loc.location_code === selectedLocation.location_code ||
-              (loc.lat === selectedLocation.lat && loc.lng === selectedLocation.lng)
+              (loc.name === selectedLocation.name) ||
+              (Math.abs(loc.lat - selectedLocation.lat) < 0.001 && Math.abs(loc.lng - selectedLocation.lng) < 0.001)
             );
             if (updatedLocation) {
-              console.log('Updating popup with scenario data:', updatedLocation);
+              console.log('Updating popup with scenario data:', {
+                location: updatedLocation.name,
+                scenario_affected: updatedLocation.scenario_affected,
+                base_change: updatedLocation.base_change,
+                base_change_percent: updatedLocation.base_change_percent,
+                price_change: updatedLocation.price_change,
+                price_change_percent: updatedLocation.price_change_percent
+              });
               setSelectedLocation({
                 ...updatedLocation,
                 coordinates: [updatedLocation.lng, updatedLocation.lat]
               });
+            } else {
+              console.log('Could not find updated location for popup:', selectedLocation.name || selectedLocation.location_code);
             }
           }
         }

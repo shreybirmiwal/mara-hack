@@ -316,10 +316,20 @@ def calculate_unified_price_changes(current_data):
         item['base_change'] = round(base_change, 2)
         item['base_change_percent'] = round(base_change_percent, 1)
         
-        # Add capacity_mw and region for frontend compatibility
+        # Add capacity_mw and region for frontend compatibility (only if not already present)
         location_info = LOCATION_DATA.get(location_code, {})
-        item['capacity_mw'] = location_info.get('capacity_mw', 100)
-        item['region'] = location_info.get('region', 'West Texas')
+        if 'capacity_mw' not in item:
+            item['capacity_mw'] = location_info.get('capacity_mw', 100)
+        if 'region' not in item:
+            item['region'] = location_info.get('region', 'West Texas')
+        
+        # Preserve all scenario-related fields that may have been set by apply_scenario_effects
+        # These fields should NOT be overwritten by this function:
+        # - scenario_affected
+        # - scenario_effect
+        # - distance_from_impact_km
+        # - impact_region
+        # - etc.
     
     return current_data
 

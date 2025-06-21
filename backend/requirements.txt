@@ -1,2 +1,4 @@
 Flask==2.3.3
-Flask-CORS==4.0.0 
+Flask-CORS==4.0.0
+gridstatusio==0.11.0
+pandas==2.2.2 

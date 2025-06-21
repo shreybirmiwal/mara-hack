@@ -1,0 +1,411 @@
+{
+  "timestamp": "2025-06-21T21:05:00",
+  "current_prices": {
+    "energy": 1.1321571382075248,
+    "hash": 2.243796154125973,
+    "token": 0.7761046053645497
+  },
+  "total_sites": 10,
+  "total_profit": 7100172.822730194,
+  "sites": [
+    {
+      "id": "BoiseID",
+      "name": "BoiseID",
+      "location": "Boise, Idaho",
+      "coordinates": {
+        "lat": 43.615,
+        "lng": -116.2023
+      },
+      "geographic_profile": "hydro_optimal",
+      "water_availability": 0.95,
+      "climate_factor": 0.8,
+      "infrastructure": 0.7,
+      "electricity_multiplier": 0.8,
+      "electricity_cost_per_mwh": 80.0,
+      "power_limit": 1000000,
+      "optimization": {
+        "net_profit": 2521897.294476815,
+        "efficiency": 2.521897294476815,
+        "power_used": 1000000,
+        "total_revenue": 3427623.005042835,
+        "total_cost": 905725.71056602
+      },
+      "machine_allocation": {
+        "air_miners": 0,
+        "hydro_miners": 160,
+        "immersion_miners": 20,
+        "gpu_compute": 0,
+        "asic_compute": 0
+      },
+      "inventory_limits": {
+        "hydro_miners": 160,
+        "air_miners": 300,
+        "immersion_miners": 30,
+        "gpu_compute": 120,
+        "asic_compute": 50
+      },
+      "geographic_efficiency": {
+        "hydro_miners": 0.8929999999999999,
+        "immersion_miners": 0.988
+      }
+    },
+    {
+      "id": "MassenaNY",
+      "name": "MassenaNY",
+      "location": "Massena, New York",
+      "coordinates": {
+        "lat": 44.9278,
+        "lng": -74.8902
+      },
+      "geographic_profile": "hydro_optimal",
+      "water_availability": 0.98,
+      "climate_factor": 0.9,
+      "infrastructure": 0.8,
+      "electricity_multiplier": 1.5,
+      "electricity_cost_per_mwh": 150.0,
+      "power_limit": 1000000,
+      "optimization": {
+        "net_profit": 2054135.6327304102,
+        "efficiency": 2.5676695409130126,
+        "power_used": 800000,
+        "total_revenue": 3412724.19857944,
+        "total_cost": 1358588.5658490297
+      },
+      "machine_allocation": {
+        "air_miners": 0,
+        "hydro_miners": 160,
+        "immersion_miners": 0,
+        "gpu_compute": 0,
+        "asic_compute": 0
+      },
+      "inventory_limits": {
+        "hydro_miners": 160,
+        "air_miners": 300,
+        "immersion_miners": 30,
+        "gpu_compute": 210,
+        "asic_compute": 50
+      },
+      "geographic_efficiency": {
+        "hydro_miners": 0.9506
+      }
+    },
+    {
+      "id": "KnoxvilleTN",
+      "name": "KnoxvilleTN",
+      "location": "Knoxville, Tennessee",
+      "coordinates": {
+        "lat": 35.9606,
+        "lng": -83.9207
+      },
+      "geographic_profile": "hydro_preferred",
+      "water_availability": 0.85,
+      "climate_factor": 0.7,
+      "infrastructure": 0.8,
+      "electricity_multiplier": 1.0,
+      "electricity_cost_per_mwh": 100.0,
+      "power_limit": 1000000,
+      "optimization": {
+        "net_profit": 1169497.7561126775,
+        "efficiency": 2.338995512225355,
+        "power_used": 500000,
+        "total_revenue": 1735576.32521644,
+        "total_cost": 566078.5691037624
+      },
+      "machine_allocation": {
+        "air_miners": 0,
+        "hydro_miners": 100,
+        "immersion_miners": 0,
+        "gpu_compute": 0,
+        "asic_compute": 0
+      },
+      "inventory_limits": {
+        "hydro_miners": 100,
+        "air_miners": 240,
+        "immersion_miners": 30,
+        "gpu_compute": 210,
+        "asic_compute": 50
+      },
+      "geographic_efficiency": {
+        "hydro_miners": 0.7735
+      }
+    },
+    {
+      "id": "MassillonOH",
+      "name": "MassillonOH",
+      "location": "Massillon, Ohio",
+      "coordinates": {
+        "lat": 40.7967,
+        "lng": -81.5215
+      },
+      "geographic_profile": "mixed_hydro",
+      "water_availability": 0.8,
+      "climate_factor": 0.75,
+      "infrastructure": 0.85,
+      "electricity_multiplier": 1.2,
+      "electricity_cost_per_mwh": 120.0,
+      "power_limit": 1000000,
+      "optimization": {
+        "net_profit": 981114.8711287052,
+        "efficiency": 1.9622297422574104,
+        "power_used": 500000,
+        "total_revenue": 1660409.15405322,
+        "total_cost": 679294.2829245148
+      },
+      "machine_allocation": {
+        "air_miners": 0,
+        "hydro_miners": 100,
+        "immersion_miners": 0,
+        "gpu_compute": 0,
+        "asic_compute": 0
+      },
+      "inventory_limits": {
+        "hydro_miners": 100,
+        "air_miners": 240,
+        "immersion_miners": 30,
+        "gpu_compute": 210,
+        "asic_compute": 50
+      },
+      "geographic_efficiency": {
+        "hydro_miners": 0.74
+      }
+    },
+    {
+      "id": "MuskogeeOK",
+      "name": "MuskogeeOK",
+      "location": "Muskogee, Oklahoma",
+      "coordinates": {
+        "lat": 35.7479,
+        "lng": -95.3697
+      },
+      "geographic_profile": "mixed_balanced",
+      "water_availability": 0.65,
+      "climate_factor": 0.6,
+      "infrastructure": 0.7,
+      "electricity_multiplier": 0.9,
+      "electricity_cost_per_mwh": 90.0,
+      "power_limit": 1000000,
+      "optimization": {
+        "net_profit": 309592.27518666803,
+        "efficiency": 1.5479613759333402,
+        "power_used": 200000,
+        "total_revenue": 513380.56006402255,
+        "total_cost": 203788.28487735448
+      },
+      "machine_allocation": {
+        "air_miners": 0,
+        "hydro_miners": 40,
+        "immersion_miners": 0,
+        "gpu_compute": 0,
+        "asic_compute": 0
+      },
+      "inventory_limits": {
+        "hydro_miners": 40,
+        "air_miners": 240,
+        "immersion_miners": 60,
+        "gpu_compute": 120,
+        "asic_compute": 50
+      },
+      "geographic_efficiency": {
+        "hydro_miners": 0.572
+      }
+    },
+    {
+      "id": "ButteMT",
+      "name": "ButteMT",
+      "location": "Butte, Montana",
+      "coordinates": {
+        "lat": 46.0038,
+        "lng": -112.5348
+      },
+      "geographic_profile": "air_preferred",
+      "water_availability": 0.45,
+      "climate_factor": 0.85,
+      "infrastructure": 0.6,
+      "electricity_multiplier": 1.1,
+      "electricity_cost_per_mwh": 110.00000000000001,
+      "power_limit": 1000000,
+      "optimization": {
+        "net_profit": 34158.49712214981,
+        "efficiency": 0.6831699424429962,
+        "power_used": 50000,
+        "total_revenue": 96427.13972356368,
+        "total_cost": 62268.64260141387
+      },
+      "machine_allocation": {
+        "air_miners": 0,
+        "hydro_miners": 10,
+        "immersion_miners": 0,
+        "gpu_compute": 0,
+        "asic_compute": 0
+      },
+      "inventory_limits": {
+        "hydro_miners": 10,
+        "air_miners": 300,
+        "immersion_miners": 30,
+        "gpu_compute": 120,
+        "asic_compute": 50
+      },
+      "geographic_efficiency": {
+        "hydro_miners": 0.42974999999999997
+      }
+    },
+    {
+      "id": "SandersvilleGA",
+      "name": "SandersvilleGA",
+      "location": "Sandersville, Georgia",
+      "coordinates": {
+        "lat": 32.9801,
+        "lng": -82.8004
+      },
+      "geographic_profile": "air_immersion",
+      "water_availability": 0.4,
+      "climate_factor": 0.5,
+      "infrastructure": 0.75,
+      "electricity_multiplier": 1.1,
+      "electricity_cost_per_mwh": 110.00000000000001,
+      "power_limit": 1000000,
+      "optimization": {
+        "net_profit": 14020.42663886922,
+        "efficiency": 0.28040853277738437,
+        "power_used": 50000,
+        "total_revenue": 76289.06924028309,
+        "total_cost": 62268.64260141387
+      },
+      "machine_allocation": {
+        "air_miners": 0,
+        "hydro_miners": 10,
+        "immersion_miners": 0,
+        "gpu_compute": 0,
+        "asic_compute": 0
+      },
+      "inventory_limits": {
+        "hydro_miners": 10,
+        "air_miners": 150,
+        "immersion_miners": 60,
+        "gpu_compute": 120,
+        "asic_compute": 50
+      },
+      "geographic_efficiency": {
+        "hydro_miners": 0.34
+      }
+    },
+    {
+      "id": "KearneyNE",
+      "name": "KearneyNE",
+      "location": "Kearney, Nebraska",
+      "coordinates": {
+        "lat": 40.6994,
+        "lng": -99.0816
+      },
+      "geographic_profile": "air_optimal",
+      "water_availability": 0.3,
+      "climate_factor": 0.9,
+      "infrastructure": 0.7,
+      "electricity_multiplier": 1.0,
+      "electricity_cost_per_mwh": 100.0,
+      "power_limit": 1000000,
+      "optimization": {
+        "net_profit": 8686.611174689577,
+        "efficiency": 0.17373222349379153,
+        "power_used": 50000,
+        "total_revenue": 65294.46808506582,
+        "total_cost": 56607.85691037624
+      },
+      "machine_allocation": {
+        "air_miners": 0,
+        "hydro_miners": 10,
+        "immersion_miners": 0,
+        "gpu_compute": 0,
+        "asic_compute": 0
+      },
+      "inventory_limits": {
+        "hydro_miners": 10,
+        "air_miners": 300,
+        "immersion_miners": 0,
+        "gpu_compute": 120,
+        "asic_compute": 50
+      },
+      "geographic_efficiency": {
+        "hydro_miners": 0.291
+      }
+    },
+    {
+      "id": "RockdaleTX",
+      "name": "RockdaleTX",
+      "location": "Rockdale, Texas",
+      "coordinates": {
+        "lat": 30.6527,
+        "lng": -97.0131
+      },
+      "geographic_profile": "air_compute",
+      "water_availability": 0.35,
+      "climate_factor": 0.85,
+      "infrastructure": 0.8,
+      "electricity_multiplier": 1.2,
+      "electricity_cost_per_mwh": 120.0,
+      "power_limit": 1000000,
+      "optimization": {
+        "net_profit": 7069.458159209156,
+        "efficiency": 0.14138916318418313,
+        "power_used": 50000,
+        "total_revenue": 74998.88645166064,
+        "total_cost": 67929.42829245148
+      },
+      "machine_allocation": {
+        "air_miners": 0,
+        "hydro_miners": 10,
+        "immersion_miners": 0,
+        "gpu_compute": 0,
+        "asic_compute": 0
+      },
+      "inventory_limits": {
+        "hydro_miners": 10,
+        "air_miners": 300,
+        "immersion_miners": 0,
+        "gpu_compute": 210,
+        "asic_compute": 50
+      },
+      "geographic_efficiency": {
+        "hydro_miners": 0.33425
+      }
+    },
+    {
+      "id": "CheyenneWY",
+      "name": "CheyenneWY",
+      "location": "Cheyenne, Wyoming",
+      "coordinates": {
+        "lat": 41.14,
+        "lng": -104.8197
+      },
+      "geographic_profile": "air_optimal",
+      "water_availability": 0.25,
+      "climate_factor": 0.95,
+      "infrastructure": 0.65,
+      "electricity_multiplier": 1.0,
+      "electricity_cost_per_mwh": 100.0,
+      "power_limit": 1000000,
+      "optimization": {
+        "net_profit": 0,
+        "efficiency": 0,
+        "power_used": 0,
+        "total_revenue": 0,
+        "total_cost": 0
+      },
+      "machine_allocation": {
+        "air_miners": 0,
+        "hydro_miners": 0,
+        "immersion_miners": 0,
+        "gpu_compute": 0,
+        "asic_compute": 0
+      },
+      "inventory_limits": {
+        "hydro_miners": 0,
+        "air_miners": 300,
+        "immersion_miners": 0,
+        "gpu_compute": 120,
+        "asic_compute": 50
+      },
+      "geographic_efficiency": {}
+    }
+  ]
+}

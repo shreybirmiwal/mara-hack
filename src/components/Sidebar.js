@@ -33,25 +33,7 @@ const Sidebar = ({ siteData }) => {
     return value.toLocaleString();
   };
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div style={{
-          background: 'rgba(15, 20, 25, 0.95)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '6px',
-          padding: '8px 12px',
-          fontSize: '12px'
-        }}>
-          <p style={{ color: '#9ca3af', margin: 0 }}>{label}</p>
-          <p style={{ color: '#22c55e', margin: '4px 0 0 0', fontWeight: '600' }}>
-            {formatCurrency(payload[0].value)}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
+
 
   return (
     <div className="sidebar">

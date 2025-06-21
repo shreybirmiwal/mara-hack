@@ -45,7 +45,8 @@ else:
 _price_history = {
     'data': [],  # List of {timestamp, location_data, scenario_name}
     'max_history': 50,  # Keep last 50 data points
-    'base_prices': {}  # Store original base prices for proper comparison
+    'base_prices': {},  # Store original base prices for proper comparison
+    'current_scenario_data': None  # Store the most recent scenario-affected data
 }
 
 # Static base prices for each location type (not fetched from API)
@@ -61,6 +62,75 @@ BASE_PRICES = {
     'Nuclear': 35.0,
     'Unknown': 40.0
 }
+
+# Geographic regions and major cities for scenario location detection
+GEOGRAPHIC_REGIONS = {
+    'houston': {'lat': 29.7604, 'lng': -95.3698, 'radius_km': 150, 'keywords': ['houston', 'gulf coast', 'southeast texas', 'refineries', 'coast']},
+    'dallas': {'lat': 32.7767, 'lng': -96.7970, 'radius_km': 120, 'keywords': ['dallas', 'fort worth', 'north texas', 'dfw']},
+    'san_antonio': {'lat': 29.4241, 'lng': -98.4936, 'radius_km': 100, 'keywords': ['san antonio', 'south texas', 'alamo city']},
+    'austin': {'lat': 30.2672, 'lng': -97.7431, 'radius_km': 80, 'keywords': ['austin', 'central texas', 'capital']},
+    'lubbock': {'lat': 33.5779, 'lng': -101.8552, 'radius_km': 200, 'keywords': ['lubbock', 'west texas', 'panhandle']},
+    'el_paso': {'lat': 31.7619, 'lng': -106.4850, 'radius_km': 150, 'keywords': ['el paso', 'far west texas', 'west texas']},
+    'corpus_christi': {'lat': 27.8006, 'lng': -97.3964, 'radius_km': 100, 'keywords': ['corpus christi', 'coast', 'coastal texas']},
+    'amarillo': {'lat': 35.2220, 'lng': -101.8313, 'radius_km': 150, 'keywords': ['amarillo', 'panhandle', 'northern texas']},
+    'beaumont': {'lat': 30.0860, 'lng': -94.1018, 'radius_km': 80, 'keywords': ['beaumont', 'golden triangle', 'refinery']},
+    'midland': {'lat': 31.9974, 'lng': -102.0779, 'radius_km': 120, 'keywords': ['midland', 'permian basin', 'oil country']}
+}
+
+def calculate_distance_km(lat1, lng1, lat2, lng2):
+    """Calculate distance between two lat/lng points in kilometers"""
+    import math
+    
+    # Convert to radians
+    lat1, lng1, lat2, lng2 = map(math.radians, [lat1, lng1, lat2, lng2])
+    
+    # Haversine formula
+    dlat = lat2 - lat1
+    dlng = lng2 - lng1
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlng/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    
+    # Earth's radius in kilometers
+    earth_radius_km = 6371
+    return earth_radius_km * c
+
+def find_affected_locations_by_geography(scenario, all_locations):
+    """
+    Find locations that should be affected based on geographic proximity to mentioned locations
+    """
+    scenario_lower = scenario.lower()
+    affected_locations = []
+    
+    # Check if any geographic regions are mentioned
+    for region_name, region_info in GEOGRAPHIC_REGIONS.items():
+        for keyword in region_info['keywords']:
+            if keyword in scenario_lower:
+                # Find all locations within radius of this region
+                region_lat = region_info['lat']
+                region_lng = region_info['lng']
+                radius_km = region_info['radius_km']
+                
+                for location in all_locations:
+                    distance = calculate_distance_km(
+                        region_lat, region_lng,
+                        location['lat'], location['lng']
+                    )
+                    
+                    if distance <= radius_km:
+                        location['distance_from_impact'] = round(distance, 1)
+                        location['impact_region'] = region_name
+                        affected_locations.append(location)
+                        # Debug logging
+                        logger.info(f"Found affected location: {location.get('name', 'Unknown')} at {distance:.1f}km from {region_name}")
+                
+                # If we found a geographic match, return those locations
+                if affected_locations:
+                    # Sort by distance (closest locations most affected)
+                    affected_locations.sort(key=lambda x: x['distance_from_impact'])
+                    return affected_locations
+    
+    # If no geographic region found, return empty list for type-based selection
+    return []
 
 # Texas location data for ERCOT nodes (approximate coordinates)
 LOCATION_DATA = {
@@ -89,10 +159,10 @@ LOCATION_DATA = {
     'WR_RN': {'lat': 31.5804, 'lng': -99.5805, 'name': 'West Texas Gas', 'type': 'Traditional', 'capacity_mw': 600, 'region': 'West Texas'},
     'WOODWRD2_RN': {'lat': 32.1543, 'lng': -95.8467, 'name': 'Woodward Gas', 'type': 'Traditional', 'capacity_mw': 750, 'region': 'East Texas'},
     'QALSW_CC1': {'lat': 32.5007, 'lng': -99.7412, 'name': 'Sweetwater CC', 'type': 'Traditional', 'capacity_mw': 900, 'region': 'West Texas'},
-    'WLTC_ESR_RN': {'lat': 29.7604, 'lng': -95.3698, 'name': 'Houston Gas', 'type': 'Traditional', 'capacity_mw': 1200, 'region': 'Southeast Texas'},
+    'WLTC_ESR_RN': {'lat': 29.7704, 'lng': -95.3798, 'name': 'Houston Gas', 'type': 'Traditional', 'capacity_mw': 1200, 'region': 'Southeast Texas'},
     
     # Battery Storage
-    'WRSBES_BESS1': {'lat': 29.7604, 'lng': -95.3698, 'name': 'Houston Battery', 'type': 'Battery Storage', 'capacity_mw': 100, 'region': 'Southeast Texas'},
+    'WRSBES_BESS1': {'lat': 29.7504, 'lng': -95.3598, 'name': 'Houston Battery', 'type': 'Battery Storage', 'capacity_mw': 100, 'region': 'Southeast Texas'},
     'WOV_BESS_RN': {'lat': 30.2672, 'lng': -97.7431, 'name': 'Austin Battery', 'type': 'Battery Storage', 'capacity_mw': 80, 'region': 'Central Texas'},
     'ALP_BESS_RN': {'lat': 30.3572, 'lng': -103.6404, 'name': 'Alpine Battery', 'type': 'Battery Storage', 'capacity_mw': 50, 'region': 'West Texas'},
     'WZRD_ESS_RN': {'lat': 30.2672, 'lng': -97.7431, 'name': 'Central Texas Battery', 'type': 'Battery Storage', 'capacity_mw': 120, 'region': 'Central Texas'},
@@ -103,7 +173,7 @@ LOCATION_DATA = {
     
     # Additional Load Zones
     'LCRA_ZONE': {'lat': 30.5085, 'lng': -97.8419, 'name': 'LCRA Zone', 'type': 'Load Zone', 'capacity_mw': 1000, 'region': 'Central Texas'},
-    'ERCOT_ZONE1': {'lat': 29.7604, 'lng': -95.3698, 'name': 'Coast Zone', 'type': 'Load Zone', 'capacity_mw': 2000, 'region': 'Southeast Texas'},
+    'ERCOT_ZONE1': {'lat': 29.7404, 'lng': -95.3898, 'name': 'Coast Zone', 'type': 'Load Zone', 'capacity_mw': 2000, 'region': 'Southeast Texas'},
     'ERCOT_ZONE2': {'lat': 31.7619, 'lng': -106.4850, 'name': 'Far West Zone', 'type': 'Load Zone', 'capacity_mw': 800, 'region': 'West Texas'},
     'ERCOT_ZONE3': {'lat': 32.7767, 'lng': -96.7970, 'name': 'North Central Zone', 'type': 'Load Zone', 'capacity_mw': 2500, 'region': 'North Texas'},
     'ERCOT_ZONE4': {'lat': 29.4241, 'lng': -98.4936, 'name': 'South Central Zone', 'type': 'Load Zone', 'capacity_mw': 1800, 'region': 'South Texas'}
@@ -256,20 +326,27 @@ def get_static_base_data():
     return processed_data
 
 def fetch_fresh_data():
-    """Get static base data with proper price calculations"""
+    """Get current data - either scenario-affected data or base data"""
     try:
-        logger.info("Fetching fresh energy data with unified price calculations")
+        logger.info("Fetching current energy data")
         
         # Initialize base prices if not done
         initialize_base_prices()
         
-        # Get static base data
-        processed_data = get_static_base_data()
+        # If we have current scenario data, return that instead of base data
+        if _price_history['current_scenario_data'] is not None:
+            logger.info("Returning current scenario-affected data")
+            # Apply fresh unified calculations to ensure consistency
+            scenario_data = _price_history['current_scenario_data'].copy()
+            processed_data = calculate_unified_price_changes(scenario_data)
+            return processed_data
         
-        # Apply unified price change calculations
+        # Otherwise return base data
+        logger.info("Returning base data (no active scenario)")
+        processed_data = get_static_base_data()
         processed_data = calculate_unified_price_changes(processed_data)
         
-        logger.info(f"Loaded {len(processed_data)} locations with unified price calculations")
+        logger.info(f"Loaded {len(processed_data)} locations")
         return processed_data
         
     except Exception as e:
@@ -495,13 +572,49 @@ def apply_scenario_effects(scenario, current_data):
     # Apply effects to matching locations
     for effect_info in matched_effects:
         affected_types = effect_info['affects']
-        multiplier = effect_info['price_multiplier']()
         
-        affected_locations = [item for item in modified_data if item['type'] in affected_types]
+        # First try geographic selection
+        geographically_affected = find_affected_locations_by_geography(scenario, modified_data)
         
-        # Affect 60-80% of matching locations
-        num_to_affect = max(1, int(len(affected_locations) * random.uniform(0.6, 0.8)))
-        locations_to_affect = random.sample(affected_locations, min(num_to_affect, len(affected_locations)))
+        if geographically_affected:
+            # Use geographic selection - filter by type if specified
+            if affected_types:
+                locations_to_affect = [loc for loc in geographically_affected if loc['type'] in affected_types]
+            else:
+                locations_to_affect = geographically_affected[:15]  # Limit to top 15 closest
+                
+            # Apply distance-based intensity (closer locations get higher multipliers)
+            for i, location in enumerate(locations_to_affect):
+                # Base multiplier
+                base_multiplier = effect_info['price_multiplier']()
+                
+                # Distance-based intensity (closer = more intense)
+                distance_factor = 1.0 - (location.get('distance_from_impact', 0) / 200.0)  # Normalize to 200km max
+                distance_factor = max(0.3, min(1.0, distance_factor))  # Keep between 0.3 and 1.0
+                
+                # Apply individual multiplier for this location
+                individual_multiplier = base_multiplier * distance_factor
+                
+                # Add some randomness so not all locations have exactly the same multiplier
+                random_factor = random.uniform(0.85, 1.15)
+                final_multiplier = individual_multiplier * random_factor
+                
+                location['scenario_multiplier'] = final_multiplier
+        else:
+            # Fall back to type-based selection with individual multipliers
+            affected_locations = [item for item in modified_data if item['type'] in affected_types]
+            
+            # Affect 60-80% of matching locations
+            num_to_affect = max(1, int(len(affected_locations) * random.uniform(0.6, 0.8)))
+            locations_to_affect = random.sample(affected_locations, min(num_to_affect, len(affected_locations)))
+            
+            # Give each location its own individual multiplier
+            for location in locations_to_affect:
+                individual_multiplier = effect_info['price_multiplier']()
+                # Add randomness so they're not all the same
+                random_factor = random.uniform(0.8, 1.2)
+                final_multiplier = individual_multiplier * random_factor
+                location['scenario_multiplier'] = final_multiplier
         
         for location in locations_to_affect:
             location_code = location['location_code']
@@ -509,8 +622,11 @@ def apply_scenario_effects(scenario, current_data):
             # Get the original base price for this location
             base_price = _price_history['base_prices'].get(location_code, location['price_mwh'])
             
+            # Use the individual multiplier calculated above
+            individual_multiplier = location.get('scenario_multiplier', effect_info['price_multiplier']())
+            
             # Apply the scenario multiplier to the BASE price, not current price
-            new_price = round(base_price * multiplier, 2)
+            new_price = round(base_price * individual_multiplier, 2)
             new_price = max(0.01, new_price)  # Ensure price stays positive
             
             # Store the old price for effects summary
@@ -531,6 +647,11 @@ def apply_scenario_effects(scenario, current_data):
             location['scenario_affected'] = True
             location['scenario_effect'] = effect_info['effect_desc']
             
+            # Add geographic info if available
+            if 'distance_from_impact' in location:
+                location['distance_from_impact_km'] = round(location['distance_from_impact'], 1)
+                location['impact_region'] = location.get('impact_region', 'unknown')
+            
             # Calculate the ACTUAL change percent from base price for reporting
             actual_change_percent = ((new_price - base_price) / base_price * 100) if base_price != 0 else 0
             
@@ -540,7 +661,9 @@ def apply_scenario_effects(scenario, current_data):
                 'old_price': old_price,
                 'new_price': new_price,
                 'base_price': base_price,
+                'multiplier_used': round(individual_multiplier, 3),
                 'change_percent': round(actual_change_percent, 1),
+                'distance_km': location.get('distance_from_impact', None),
                 'effect': effect_info['effect_desc']
             })
     
@@ -568,6 +691,9 @@ def analyze_scenario():
         
         # Now apply the unified price change calculations to get proper trends and percentages
         modified_data = calculate_unified_price_changes(modified_data)
+        
+        # Store the scenario-affected data as current data
+        _price_history['current_scenario_data'] = [item.copy() for item in modified_data]
         
         # Add the modified data to price history AFTER calculations are complete
         add_to_price_history(modified_data, scenario)
@@ -756,8 +882,9 @@ Return ONLY a clean JSON array like: ["Alert 1", "Alert 2", "Alert 3"]"""
 def reset_to_baseline():
     """Reset all prices back to baseline and clear scenario history"""
     try:
-        # Clear price history
+        # Clear price history and current scenario data
         _price_history['data'].clear()
+        _price_history['current_scenario_data'] = None
         
         # Get fresh base data
         base_data = get_static_base_data()
@@ -769,7 +896,7 @@ def reset_to_baseline():
         # Add base data to history
         add_to_price_history(processed_data, 'baseline_reset')
         
-        logger.info("System reset to baseline prices")
+        logger.info("System reset to baseline prices - cleared scenario data")
         
         return jsonify({
             'success': True,
@@ -783,6 +910,51 @@ def reset_to_baseline():
         return jsonify({
             'success': False,
             'error': f'Reset failed: {str(e)}'
+        }), 500
+
+@app.route('/api/test-geographic-scenario', methods=['POST'])
+def test_geographic_scenario():
+    """Test endpoint for geographic scenario effects without AI"""
+    try:
+        data = request.get_json()
+        scenario = data.get('scenario', 'hurricane hits Houston')
+        
+        # Get current data
+        current_data = fetch_fresh_data()
+        
+        # Apply scenario effects
+        modified_data, effects_applied = apply_scenario_effects(scenario, current_data)
+        
+        # Apply unified calculations
+        modified_data = calculate_unified_price_changes(modified_data)
+        
+        # Store as current scenario data
+        _price_history['current_scenario_data'] = [item.copy() for item in modified_data]
+        
+        # Add to history
+        add_to_price_history(modified_data, scenario)
+        
+        return jsonify({
+            'success': True,
+            'scenario': scenario,
+            'geographic_detection': 'houston' in scenario.lower(),
+            'total_affected': len(effects_applied),
+            'effects_summary': effects_applied[:10],  # First 10 effects
+            'geographic_analysis': {
+                'houston_locations': len([e for e in effects_applied if e.get('distance_km') is not None]),
+                'unique_percentages': len(set([e['change_percent'] for e in effects_applied])),
+                'distance_range': {
+                    'min': min([e.get('distance_km', 999) for e in effects_applied if e.get('distance_km') is not None], default=0),
+                    'max': max([e.get('distance_km', 0) for e in effects_applied if e.get('distance_km') is not None], default=0)
+                }
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in test geographic scenario: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500
 
 @app.route('/api/debug-prices', methods=['GET'])

@@ -321,44 +321,20 @@ function App() {
             setAllEffects(prev => [...prev, ...response.data.effects_summary]);
           }
 
-          // Update selectedLocation with new data if a popup is open
+          // IMMEDIATELY update selectedLocation with new data if a popup is open
           if (showPopup && selectedLocation) {
             const updatedLocation = response.data.modified_data.find(loc =>
-              loc.lat === selectedLocation.lat && loc.lng === selectedLocation.lng
+              loc.location_code === selectedLocation.location_code ||
+              (loc.lat === selectedLocation.lat && loc.lng === selectedLocation.lng)
             );
             if (updatedLocation) {
+              console.log('Updating popup with scenario data:', updatedLocation);
               setSelectedLocation({
                 ...updatedLocation,
                 coordinates: [updatedLocation.lng, updatedLocation.lat]
               });
             }
           }
-
-          // Refresh data to get updated price history from scenarios
-          setTimeout(async () => {
-            await fetchData();
-            // Also refresh the popup if it's open - fetch fresh data
-            if (showPopup && selectedLocation) {
-              try {
-                const freshResponse = await axios.get('http://localhost:5001/api/energy-data');
-                if (freshResponse.data.success) {
-                  const freshData = freshResponse.data.data;
-                  const refreshedLocation = freshData.find(loc =>
-                    loc.location_code === selectedLocation.location_code ||
-                    (loc.lat === selectedLocation.lat && loc.lng === selectedLocation.lng)
-                  );
-                  if (refreshedLocation) {
-                    setSelectedLocation({
-                      ...refreshedLocation,
-                      coordinates: [refreshedLocation.lng, refreshedLocation.lat]
-                    });
-                  }
-                }
-              } catch (error) {
-                console.error('Error refreshing popup data:', error);
-              }
-            }
-          }, 1000);
         }
 
         setChatInput('');
@@ -420,6 +396,32 @@ function App() {
   };
 
   // Function to zoom to a specific location on the map
+  const zoomToLocationByCode = (locationCode, locationName) => {
+    if (mapRef.current) {
+      // Find the location by location_code for precise matching
+      const location = energyData.find(loc => loc.location_code === locationCode);
+      if (location) {
+        setViewState({
+          longitude: location.lng,
+          latitude: location.lat,
+          zoom: 12,
+          pitch: 45,
+          bearing: 0
+        });
+
+        console.log('Zooming to location:', location);
+        setSelectedLocation({
+          ...location,
+          coordinates: [location.lng, location.lat]
+        });
+        setShowPopup(true);
+      } else {
+        console.error('Location not found:', locationCode, locationName);
+      }
+    }
+  };
+
+  // Legacy function for backward compatibility
   const zoomToLocation = (lat, lng, name) => {
     if (mapRef.current) {
       setViewState({
@@ -430,8 +432,11 @@ function App() {
         bearing: 0
       });
 
-      // Find the location in energyData and show popup
-      const location = energyData.find(loc => loc.lat === lat && loc.lng === lng);
+      // Find the location in energyData and show popup - use more precise matching
+      const location = energyData.find(loc =>
+        Math.abs(loc.lat - lat) < 0.001 && Math.abs(loc.lng - lng) < 0.001 && loc.name === name
+      ) || energyData.find(loc => loc.name === name);
+
       if (location) {
         setSelectedLocation({
           ...location,
@@ -550,11 +555,21 @@ function App() {
                 {allEffects.map((effect, index) => (
                   <div key={index} className="bg-gray-800 bg-opacity-70 p-3 rounded-lg border border-gray-600 hover:bg-gray-700 cursor-pointer transition-colors duration-200"
                     onClick={() => {
-                      // Find the location in energyData to get coordinates
-                      const location = energyData.find(loc => loc.name === effect.location);
-                      if (location) {
-                        zoomToLocation(location.lat, location.lng, location.name);
-                        // Panel stays open since it's always visible now
+                      console.log('Clicked effect:', effect);
+                      // Use location_code for precise matching instead of coordinates
+                      if (effect.location_code) {
+                        console.log('Using location_code:', effect.location_code);
+                        zoomToLocationByCode(effect.location_code, effect.location);
+                      } else {
+                        console.log('Fallback to name search for:', effect.location);
+                        // Fallback to name-based search
+                        const location = energyData.find(loc => loc.name === effect.location);
+                        if (location) {
+                          console.log('Found location by name:', location);
+                          zoomToLocationByCode(location.location_code, location.name);
+                        } else {
+                          console.error('Location not found:', effect.location);
+                        }
                       }
                     }}
                   >
@@ -570,13 +585,25 @@ function App() {
                     <div className="text-gray-300 text-xs mb-2">
                       {effect.effect}
                     </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-400">
-                        ${effect.base_price ? effect.base_price.toFixed(2) : effect.old_price.toFixed(2)} → ${effect.new_price.toFixed(2)}
-                      </span>
-                      <span className="text-blue-400 hover:text-blue-300">
-                        📍 Zoom to location
-                      </span>
+                    <div className="text-xs space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">
+                          ${effect.base_price ? effect.base_price.toFixed(2) : effect.old_price.toFixed(2)} → ${effect.new_price.toFixed(2)}
+                        </span>
+                        <span className="text-blue-400 hover:text-blue-300">
+                          📍 Zoom to location
+                        </span>
+                      </div>
+                      {effect.distance_km !== null && effect.distance_km !== undefined && (
+                        <div className="text-gray-500">
+                          📍 {effect.distance_km.toFixed(1)}km from impact
+                        </div>
+                      )}
+                      {effect.multiplier_used && (
+                        <div className="text-gray-500">
+                          🔢 Multiplier: {effect.multiplier_used}x
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -690,6 +717,9 @@ function App() {
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-bold text-lg text-gray-800">
                     {selectedLocation.name}
+                    <div className="text-xs text-gray-600 font-normal">
+                      {selectedLocation.location_code || 'No code'}
+                    </div>
                   </h3>
                   {selectedLocation.scenario_affected && (
                     <span className="bg-yellow-500 text-yellow-900 px-2 py-1 rounded text-xs font-bold animate-pulse">
@@ -703,6 +733,16 @@ function App() {
                     <div className="text-sm text-yellow-800">
                       <strong>Scenario Effect:</strong> {selectedLocation.scenario_effect}
                     </div>
+                    {selectedLocation.distance_from_impact_km && (
+                      <div className="text-xs text-yellow-700 mt-1">
+                        📍 {selectedLocation.distance_from_impact_km}km from impact center
+                      </div>
+                    )}
+                    {selectedLocation.impact_region && (
+                      <div className="text-xs text-yellow-700">
+                        🗺️ Impact region: {selectedLocation.impact_region.replace('_', ' ').toUpperCase()}
+                      </div>
+                    )}
                   </div>
                 )}
 

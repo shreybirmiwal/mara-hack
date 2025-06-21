@@ -47,6 +47,12 @@ _cache = {
     'cache_duration': 300  # 5 minutes cache
 }
 
+# Price history storage (in production, this would be a database)
+_price_history = {
+    'data': [],  # List of {timestamp, location_data}
+    'max_history': 50  # Keep last 50 data points
+}
+
 # Texas location data for ERCOT nodes (approximate coordinates)
 LOCATION_DATA = {
     # Major Cities & Load Centers
@@ -101,6 +107,84 @@ def is_cache_valid():
     
     time_diff = time.time() - _cache['last_fetch_time']
     return time_diff < _cache['cache_duration']
+
+def add_to_price_history(data):
+    """Add current data to price history"""
+    timestamp = datetime.now().isoformat()
+    _price_history['data'].append({
+        'timestamp': timestamp,
+        'locations': data
+    })
+    
+    # Keep only the last max_history entries
+    if len(_price_history['data']) > _price_history['max_history']:
+        _price_history['data'] = _price_history['data'][-_price_history['max_history']:]
+
+def calculate_price_changes(current_data):
+    """Calculate price changes from previous data points"""
+    if len(_price_history['data']) < 2:
+        # Not enough history, return current data with zero changes
+        for item in current_data:
+            item['price_change'] = 0
+            item['price_change_percent'] = 0
+            item['trend'] = 'stable'
+            item['price_history'] = [item['price_mwh']]  # Just current price
+        return current_data
+    
+    # Get previous data point
+    previous_data = _price_history['data'][-2]['locations']
+    previous_by_code = {item['location_code']: item for item in previous_data}
+    
+    # Get last 10 data points for trend analysis
+    recent_history = _price_history['data'][-10:]
+    
+    for item in current_data:
+        location_code = item['location_code']
+        current_price = item['price_mwh']
+        
+        # Calculate change from previous
+        if location_code in previous_by_code:
+            previous_price = previous_by_code[location_code]['price_mwh']
+            price_change = current_price - previous_price
+            price_change_percent = (price_change / previous_price * 100) if previous_price != 0 else 0
+        else:
+            price_change = 0
+            price_change_percent = 0
+        
+        # Determine trend
+        if price_change_percent > 5:
+            trend = 'rising'
+        elif price_change_percent < -5:
+            trend = 'falling'
+        else:
+            trend = 'stable'
+        
+        # Build price history for this location
+        price_history = []
+        for hist_point in recent_history:
+            location_hist = next((loc for loc in hist_point['locations'] if loc['location_code'] == location_code), None)
+            if location_hist:
+                price_history.append(location_hist['price_mwh'])
+        
+        # Add current price if not already there
+        if not price_history or price_history[-1] != current_price:
+            price_history.append(current_price)
+        
+        # Limit to last 10 points
+        price_history = price_history[-10:]
+        
+        # Add calculated fields
+        item['price_change'] = round(price_change, 2)
+        item['price_change_percent'] = round(price_change_percent, 1)
+        item['trend'] = trend
+        item['price_history'] = price_history
+        
+        # Add capacity_mw and region for frontend compatibility
+        location_info = LOCATION_DATA.get(location_code, {})
+        item['capacity_mw'] = location_info.get('capacity_mw', 100)
+        item['region'] = location_info.get('region', 'West Texas')
+    
+    return current_data
 
 def fetch_and_cache_data():
     """Fetch data from API and cache it"""
@@ -164,7 +248,7 @@ def fetch_and_cache_data():
                 
                 processed_data.append({
                     'location_code': location_code,
-                    'location_name': location_info['name'],
+                    'name': location_info['name'],  # Changed from location_name to name
                     'lat': location_info['lat'],
                     'lng': location_info['lng'],
                     'type': location_info['type'],
@@ -177,6 +261,12 @@ def fetch_and_cache_data():
             logger.warning("No API data available, using mock data")
             import random
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Add some realistic variation to mock data if we have history
+            base_variation = 0
+            if len(_price_history['data']) > 0:
+                # Add some market movement
+                base_variation = random.uniform(-10, 10)
             
             for location_code, location_info in LOCATION_DATA.items():
                 # Generate realistic mock prices based on location type
@@ -193,16 +283,23 @@ def fetch_and_cache_data():
                 else:
                     base_price = random.uniform(25, 75)
                 
+                # Apply market variation
+                final_price = max(0, base_price + base_variation + random.uniform(-5, 5))
+                
                 processed_data.append({
                     'location_code': location_code,
-                    'location_name': location_info['name'],
+                    'name': location_info['name'],  # Changed from location_name to name
                     'lat': location_info['lat'],
                     'lng': location_info['lng'],
                     'type': location_info['type'],
-                    'price_mwh': round(base_price, 2),
+                    'price_mwh': round(final_price, 2),
                     'timestamp': current_time,
-                    'price_category': 'high' if base_price > 50 else 'medium' if base_price > 25 else 'low'
+                    'price_category': 'high' if final_price > 50 else 'medium' if final_price > 25 else 'low'
                 })
+        
+        # Calculate price changes and add to history
+        processed_data = calculate_price_changes(processed_data)
+        add_to_price_history(processed_data)
         
         # Sort by price for better visualization
         processed_data.sort(key=lambda x: x['price_mwh'], reverse=True)
@@ -335,7 +432,9 @@ def get_cache_info():
 
 @app.route('/api/scenario-analysis', methods=['POST'])
 def analyze_scenario():
-    """Analyze a scenario using AI and return notifications"""
+    """
+    Analyze a hypothetical scenario and generate realistic energy market notifications
+    """
     try:
         data = request.get_json()
         scenario = data.get('scenario', '').strip()
@@ -344,155 +443,94 @@ def analyze_scenario():
         if not scenario:
             return jsonify({
                 'success': False,
-                'error': 'Scenario description is required'
+                'error': 'No scenario provided'
             }), 400
             
-        if not ai_client:
+        if not OPENROUTER_API_KEY:
+            # Return a mock notification for demo purposes
+            mock_notification = {
+                'message': f"West Texas wind farms see 250% surge in production due to {scenario.lower()}",
+                'type': 'alert',
+                'region': 'West Texas',
+                'impact': 'High'
+            }
             return jsonify({
-                'success': False,
-                'error': 'AI service not configured. Please set OPENROUTER_API_KEY environment variable.'
-            }), 503
+                'success': True,
+                'notification': mock_notification
+            })
         
-        # Prepare context about current energy situation
-        energy_context = {
-            'total_locations': len(current_data),
-            'avg_price': round(sum([d['price_mwh'] for d in current_data]) / len(current_data), 2) if current_data else 0,
-            'max_price': max([d['price_mwh'] for d in current_data]) if current_data else 0,
-            'min_price': min([d['price_mwh'] for d in current_data]) if current_data else 0,
-            'location_types': list(set([d['type'] for d in current_data])) if current_data else [],
-            'high_price_locations': [d for d in current_data if d['price_mwh'] > 75] if current_data else []
+        # Initialize OpenAI client for OpenRouter
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=OPENROUTER_API_KEY,
+        )
+        
+        # Create a comprehensive prompt for realistic scenario analysis
+        prompt = f"""You are an energy market analyst specializing in Texas ERCOT grid operations. 
+
+SCENARIO: {scenario}
+
+CURRENT ENERGY DATA CONTEXT:
+{json.dumps(current_data[:10], indent=2) if current_data else "No current data available"}
+
+Generate ONE realistic breaking news alert about how this scenario would impact West Texas energy markets. 
+
+REQUIREMENTS:
+- Write like a professional energy news ticker/alert
+- Include specific percentage changes, locations, or infrastructure impacts
+- Focus on realistic consequences (wind farms, solar installations, transmission lines, pricing)
+- Keep it under 100 characters for a news ticker format
+- Be authoritative and specific
+- Don't use phrases like "could" or "might" - state impacts as if they're happening
+
+EXAMPLES OF GOOD ALERTS:
+- "West Texas wind farms see 250% surge in production due to increased wind"
+- "ERCOT issues grid emergency as 3 major transmission lines fail in Permian Basin"
+- "Solar installations in Lubbock offline after hailstorm, prices spike 40%"
+
+Return ONLY the alert message, nothing else."""
+
+        # Call the AI model
+        response = client.chat.completions.create(
+            model="meta-llama/llama-3.3-70b-instruct",
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "You are a professional energy market news analyst. Generate realistic, specific breaking news alerts about energy market impacts."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=150,
+            temperature=0.7
+        )
+        
+        ai_message = response.choices[0].message.content.strip()
+        
+        # Clean up the message (remove quotes if present)
+        if ai_message.startswith('"') and ai_message.endswith('"'):
+            ai_message = ai_message[1:-1]
+            
+        # Create the notification
+        notification = {
+            'message': ai_message,
+            'type': 'alert',
+            'region': 'West Texas',
+            'impact': 'High'
         }
         
-        # Create AI prompt
-        system_prompt = """You are an expert energy market analyst specializing in Texas ERCOT grid operations. 
-        You analyze scenarios and predict their impact on energy prices and grid stability.
-        
-        Your job is to analyze hypothetical scenarios and generate realistic notifications about their impacts.
-        
-        Return your response as a JSON object with a 'notifications' array. Each notification should have:
-        - title: Short descriptive title (max 50 chars)
-        - message: Detailed explanation (max 150 chars)  
-        - type: one of 'alert', 'warning', 'info', 'success'
-        - impact: Brief impact description (max 80 chars)
-        
-        Generate 2-4 notifications that would realistically occur from this scenario.
-        Focus on specific impacts to different regions, facility types, and market prices.
-        Be realistic but engaging."""
-        
-        user_prompt = f"""
-        Current West Texas Energy Market Status:
-        - Total locations monitored: {energy_context['total_locations']}
-        - Average price: ${energy_context['avg_price']:.2f}/MWh
-        - Price range: ${energy_context['min_price']:.2f} - ${energy_context['max_price']:.2f}/MWh
-        - Energy types: {', '.join(energy_context['location_types'])}
-        - High-price locations: {len(energy_context['high_price_locations'])} locations above $75/MWh
-        
-        Scenario to analyze: "{scenario}"
-        
-        Generate realistic notifications about what would happen to the Texas energy grid and prices.
-        """
-        
-        # Call AI API
-        try:
-            completion = ai_client.chat.completions.create(
-                extra_headers={
-                    "HTTP-Referer": "https://mara-energy.local",
-                    "X-Title": "MARA Energy Scenario Analysis",
-                },
-                model="meta-llama/llama-3.3-70b-instruct",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.7,
-                max_tokens=1000
-            )
-            
-            ai_response = completion.choices[0].message.content
-            logger.info(f"AI Response: {ai_response}")
-            
-            # Try to parse JSON response
-            try:
-                parsed_response = json.loads(ai_response)
-                notifications = parsed_response.get('notifications', [])
-            except json.JSONDecodeError:
-                # If AI didn't return valid JSON, create fallback notifications
-                logger.warning("AI response was not valid JSON, creating fallback notifications")
-                notifications = [
-                    {
-                        "title": "Scenario Analysis Complete",
-                        "message": "AI analysis indicates potential market impacts from the described scenario.",
-                        "type": "info",
-                        "impact": "Market volatility expected"
-                    },
-                    {
-                        "title": "Price Impact Expected",
-                        "message": f"Scenario '{scenario[:50]}...' could affect regional pricing patterns.",
-                        "type": "warning", 
-                        "impact": "Monitor grid stability"
-                    }
-                ]
-            
-            # Validate and clean notifications
-            cleaned_notifications = []
-            for notification in notifications[:4]:  # Max 4 notifications
-                if isinstance(notification, dict):
-                    cleaned_notification = {
-                        'title': str(notification.get('title', 'Alert'))[:50],
-                        'message': str(notification.get('message', 'Impact detected'))[:150],
-                        'type': notification.get('type', 'info') if notification.get('type') in ['alert', 'warning', 'info', 'success'] else 'info',
-                        'impact': str(notification.get('impact', 'Impact analysis'))[:80]
-                    }
-                    cleaned_notifications.append(cleaned_notification)
-            
-            if not cleaned_notifications:
-                # Fallback if no valid notifications
-                cleaned_notifications = [{
-                    'title': 'Scenario Processed',
-                    'message': 'Your scenario has been analyzed. Market impacts are being evaluated.',
-                    'type': 'info',
-                    'impact': 'Analysis complete'
-                }]
-            
-            return jsonify({
-                'success': True,
-                'notifications': cleaned_notifications,
-                'scenario': scenario,
-                'analysis_timestamp': datetime.now().isoformat()
-            })
-            
-        except Exception as ai_error:
-            logger.error(f"AI API error: {str(ai_error)}")
-            # Return fallback notifications if AI fails
-            fallback_notifications = [
-                {
-                    'title': 'Analysis in Progress',
-                    'message': 'Scenario impact assessment is being processed by our systems.',
-                    'type': 'info',
-                    'impact': 'Monitoring grid response'
-                },
-                {
-                    'title': 'Market Alert',
-                    'message': f'Potential impacts detected from: {scenario[:50]}{"..." if len(scenario) > 50 else ""}',
-                    'type': 'warning',
-                    'impact': 'Regional price volatility possible'
-                }
-            ]
-            
-            return jsonify({
-                'success': True,
-                'notifications': fallback_notifications,
-                'scenario': scenario,
-                'analysis_timestamp': datetime.now().isoformat(),
-                'note': 'Using fallback analysis due to AI service limitations'
-            })
+        return jsonify({
+            'success': True,
+            'notification': notification
+        })
         
     except Exception as e:
         logger.error(f"Error in scenario analysis: {str(e)}")
         return jsonify({
             'success': False,
-            'error': str(e),
-            'message': 'Failed to analyze scenario'
+            'error': f'Analysis failed: {str(e)}'
         }), 500
 
 if __name__ == '__main__':

@@ -408,9 +408,15 @@ def generate_people_reactions(scenario, people_data, affected_locations):
         prompt = f"""
         Scenario: {scenario}
         
-        Affected locations: {', '.join(location_names)}
+        Affected energy locations: {', '.join(location_names)}
         
-        Generate funny, unique reactions for these people based on their personalities. Each person should react differently based on their profession and personality. Make the reactions humorous but believable.
+        Generate energy grid-focused reactions for these people based on their personalities and professions. Each person should react like they're tweeting about how the scenario affects Texas energy infrastructure, power prices, or grid operations. Make the reactions specific to energy markets and grid operations, but still reflect their personality.
+        
+        Examples of energy-relevant reactions:
+        - "Houston data center emergency generators just kicked in - grid looking unstable"
+        - "ERCOT needs to explain why facility power costs doubled overnight"
+        - "Corpus Christi refinery outage affecting electricity rates across region"
+        - "West Texas wind farms down - whole town's power is out"
         
         People:
         """
@@ -424,14 +430,14 @@ def generate_people_reactions(scenario, people_data, affected_locations):
         [
             {
                 "id": 1,
-                "reaction": "Oh no! My crypto portfolio during a disaster!",
+                "reaction": "Mining rig shutdown - Texas power prices too volatile for profit margins",
                 "shouldMove": true,
                 "newLat": 30.1234,
                 "newLng": -97.5678
             }
         ]
         
-        Make each reaction 1-2 sentences, funny, and true to their character. If they should move locations due to the scenario, set shouldMove to true and provide new coordinates within Texas.
+        Make each reaction 1-2 sentences focused on energy grid impacts, power prices, infrastructure failures, or energy market effects. Connect their profession to energy infrastructure when possible. If they should evacuate or move due to the scenario, set shouldMove to true and provide new coordinates within Texas.
         """
         
         response = ai_client.chat.completions.create(
@@ -484,21 +490,21 @@ def generate_people_reactions(scenario, people_data, affected_locations):
         return generate_default_people_reactions(scenario, people_data)
 
 def generate_personality_reaction(person, scenario):
-    """Generate reaction based on person's personality"""
+    """Generate energy-focused reaction based on person's personality"""
     personality_reactions = {
-        'anxious_perfectionist': [f"Oh no, this {scenario} is going to ruin everything!", "I need to make a plan immediately!"],
-        'assertive_leader': [f"I demand answers about this {scenario}!", "Someone needs to take charge here!"],
-        'optimistic_risk_taker': [f"This {scenario} is just another opportunity!", "Diamond hands through the chaos!"],
-        'social_butterfly': [f"OMG everyone, this {scenario} is literally insane!", "This is going to break the internet!"],
-        'practical_grumpy': [f"Great, another {scenario} to deal with...", "This is why we can't have nice things."],
-        'zen_master': [f"The {scenario} is just the universe's way of teaching us.", "I must find my center during this chaos."],
-        'hyperactive': [f"WOAH THIS {scenario.upper()} IS INTENSE!!!", "I NEED TO DO SOMETHING RIGHT NOW!!!"],
-        'stressed_parent': [f"How do I explain this {scenario} to my kids?", "Is my family safe during this?"],
-        'competitive_alpha': [f"I can handle this {scenario} better than anyone!", "Time to show what I'm made of!"],
-        'nurturing_obsessive': [f"My plants/pets need protection from this {scenario}!", "Everything I care about is in danger!"]
+        'anxious_perfectionist': [f"Grid instability from {scenario} - our backup systems aren't tested for this!", "ERCOT needs detailed contingency plans immediately!"],
+        'assertive_leader': [f"I demand transparency on how {scenario} affected energy pricing!", "Someone needs to take control of this grid situation!"],
+        'optimistic_risk_taker': [f"Energy price volatility from {scenario} - time to buy the dip!", "This grid disruption is just another trading opportunity!"],
+        'social_butterfly': [f"OMG power outages from {scenario} are trending everywhere!", "This energy crisis is going viral!"],
+        'practical_grumpy': [f"Great, another {scenario} breaking the power grid...", "This is why Texas energy infrastructure is unreliable."],
+        'zen_master': [f"The {scenario} teaches us about grid interconnectedness.", "Finding balance as energy systems realign."],
+        'hyperactive': [f"GRID EMERGENCY FROM {scenario.upper()} - POWER PRICES SPIKING!!!", "ENERGY INFRASTRUCTURE CHAOS RIGHT NOW!!!"],
+        'stressed_parent': [f"How do I keep my family safe when {scenario} knocked out our power?", "Are the kids' schools affected by these energy outages?"],
+        'competitive_alpha': [f"I can manage energy costs better than anyone during {scenario}!", "Time to show my grid optimization skills!"],
+        'nurturing_obsessive': [f"My solar panels need protection from this {scenario}!", "Everything dependent on electricity is at risk!"]
     }
     
-    reactions = personality_reactions.get(person['personality'], [f"This {scenario} is something else!", "What a day this turned out to be..."])
+    reactions = personality_reactions.get(person['personality'], [f"Grid disruption from {scenario} affecting energy markets!", "Power infrastructure under stress from this event!"])
     
     return {
         'id': person['id'],

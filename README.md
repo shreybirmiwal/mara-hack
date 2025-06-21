@@ -1,21 +1,24 @@
-# MARA Hackathon Site Manager
+# MARA Hackathon Local Optimizer
 
-A Python application for managing multiple mining/data center sites and optimizing profitability for the MARA Hackathon 2025.
+A Python application for optimizing mining/data center configurations using local price data without API dependencies.
 
 ## Features
 
-- **Multi-Site Management**: Create and manage 10 mining sites across major US locations
-- **Real-Time Optimization**: Automatically optimize machine allocation based on current prices
-- **Historical Data Tracking**: Store and analyze pricing and performance data
-- **Profitability Analysis**: Calculate optimal configurations for maximum profit
-- **Interactive Management**: Easy-to-use command-line interface for manual control
+- **Regional Cost Analysis**: 10 mining locations with realistic electricity cost multipliers
+- **Local Optimization**: Calculate optimal configurations using historical price data
+- **Historical Simulation**: Replay optimization decisions across any time period
+- **CSV Data Management**: Clean CSV files for easy analysis and export
+- **No API Dependencies**: Run everything locally after initial price fetch
 
 ## Files
 
-- `main.py` - Main application with automatic optimization loop
-- `manage_sites.py` - Interactive utility for manual site management
+- `fetch_prices.py` - Fetch latest pricing data from MARA API (only when needed)
+- `optimize.py` - Local optimizer using latest price data  
+- `simulate.py` - Historical simulation using collected price data
+- `view_data.py` - View and analyze collected data
+- `demo.py` - Complete workflow demonstration
 - `requirements.txt` - Python dependencies
-- `mara_data.db` - SQLite database (created automatically)
+- `mara_pricing_history.csv` - Historical pricing data (created automatically)
 
 ## Installation
 
@@ -26,33 +29,35 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Option 1: Automatic Mode (Recommended)
-Run the main application for continuous optimization:
+### Step 1: Fetch Price Data (Only When Needed)
+Get the latest pricing data from the MARA API:
 ```bash
-python main.py
+python fetch_prices.py
 ```
 
-This will:
-1. Create 10 mining sites across major US locations (TX, WY, MT, NY, GA, TN, OK, NE, OH, ID)
-2. Fetch current pricing data
-3. Optimize machine allocation for maximum profit
-4. Continue monitoring and reoptimizing every 5 minutes
-
-### Option 2: Interactive Mode
-Use the management utility for manual control:
+### Step 2: Run Local Optimization
+Optimize all sites using the latest price data:
 ```bash
-python manage_sites.py
+python optimize.py
 ```
 
-Available commands:
-1. **Create sites** - Set up the 10 mining locations
-2. **Check current prices** - View latest energy, hash, and token prices
-3. **View inventory** - See available machine types and specifications
-4. **Optimize all sites** - Run optimization algorithm once
-5. **Show site status** - Display current allocation and profitability
-6. **Performance summary** - View comprehensive performance metrics
-7. **Manual machine allocation** - Manually configure machine types
-8. **Historical data analysis** - View pricing trends and performance history
+### Step 3: Historical Analysis
+Run simulations using collected historical data:
+```bash
+python simulate.py
+```
+
+### Step 4: View/Export Data
+Analyze your collected data:
+```bash
+python view_data.py
+```
+
+### Quick Demo
+See the complete workflow in action:
+```bash
+python demo.py
+```
 
 ## How It Works
 
@@ -76,8 +81,8 @@ Available commands:
 5. Update site configuration via API
 
 ### Data Storage:
-- **pricing_history**: Historical price data updated every 5 minutes
-- **site_performance**: Site performance metrics and machine configurations
+- **mara_pricing_history.csv**: Historical price data updated every 5 minutes
+- **mara_site_performance.csv**: Site performance metrics and machine configurations
 
 ## Key Features
 
@@ -141,7 +146,7 @@ This application is designed with GUI development in mind. Potential future feat
 **Connection Issues**: Check internet connection and API endpoint availability
 **Authentication Errors**: Verify API keys are correct and sites were created successfully
 **Power Limit Exceeded**: Reduce machine allocation or check power calculations
-**Database Issues**: Delete `mara_data.db` to reset and recreate database
+**Data Issues**: Delete CSV files (`mara_pricing_history.csv`, `mara_site_performance.csv`) to reset data
 
 ## Support
 

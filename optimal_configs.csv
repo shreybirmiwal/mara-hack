@@ -1,0 +1,11 @@
+rank,site_name,location,electricity_multiplier,net_profit,efficiency,power_used,air_miners,hydro_miners,immersion_miners,gpu_compute,asic_compute
+1,BoiseID,"Boise, Idaho",0.8,3101694.2207029667,3.1016942207029667,1000000,0,200,0,0,0
+2,MassenaNY,"Massena, New York",1.5,2567669.5409130133,2.5676695409130135,1000000,0,200,0,0,0
+3,KnoxvilleTN,"Knoxville, Tennessee",1.0,2338995.512225355,2.338995512225355,1000000,0,200,0,0,0
+4,MassillonOH,"Massillon, Ohio",1.2,1962229.7422574104,1.9622297422574104,1000000,0,200,0,0,0
+5,MuskogeeOK,"Muskogee, Oklahoma",0.9,1547961.3759333408,1.5479613759333408,1000000,0,200,0,0,0
+6,ButteMT,"Butte, Montana",1.1,683169.9424429964,0.6831699424429964,1000000,0,200,0,0,0
+7,SandersvilleGA,"Sandersville, Georgia",1.1,280408.5327773846,0.28040853277738464,1000000,0,200,0,0,0
+8,KearneyNE,"Kearney, Nebraska",1.0,173732.22349379165,0.17373222349379164,1000000,0,200,0,0,0
+9,RockdaleTX,"Rockdale, Texas",1.2,141389.16318418318,0.14138916318418318,1000000,0,200,0,0,0
+10,CheyenneWY,"Cheyenne, Wyoming",1.0,0,0,0,0,0,0,0,0

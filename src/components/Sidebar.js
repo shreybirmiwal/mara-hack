@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis } from 'recharts';
-import EventSimulator from './EventSimulator';
+import DisasterSimulator from './DisasterSimulator';
 
-const Sidebar = ({ siteData, onDataUpdate }) => {
+const Sidebar = ({ siteData, onSiteDataUpdate }) => {
+  const [activeTab, setActiveTab] = useState('dashboard');
   // Generate mock historical data for charts
   const generateChartData = (baseValue, volatility = 0.1) => {
     const data = [];
@@ -38,9 +39,27 @@ const Sidebar = ({ siteData, onDataUpdate }) => {
 
   return (
     <div className="sidebar">
-      {/* Market Data Section */}
-      <div className="sidebar-section">
-        <h3 className="sidebar-title">Market Rates</h3>
+      {/* Tab Navigation */}
+      <div className="sidebar-tabs">
+        <button 
+          className={`sidebar-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setActiveTab('dashboard')}
+        >
+          Dashboard
+        </button>
+        <button 
+          className={`sidebar-tab ${activeTab === 'simulator' ? 'active' : ''}`}
+          onClick={() => setActiveTab('simulator')}
+        >
+          Disaster Sim
+        </button>
+      </div>
+
+      {activeTab === 'dashboard' && (
+        <div className="sidebar-content">
+          {/* Market Data Section */}
+          <div className="sidebar-section">
+            <h3 className="sidebar-title">Market Rates</h3>
         
         <div className="chart-container">
           <div className="chart-header">
@@ -124,11 +143,6 @@ const Sidebar = ({ siteData, onDataUpdate }) => {
         </div>
       </div>
 
-      {/* Event Simulator */}
-      <div className="sidebar-section">
-        <EventSimulator siteData={siteData} onDataUpdate={onDataUpdate} />
-      </div>
-
       {/* Performance Metrics */}
       <div className="sidebar-section">
         <h3 className="sidebar-title">Performance Metrics</h3>
@@ -180,6 +194,15 @@ const Sidebar = ({ siteData, onDataUpdate }) => {
             ))}
         </div>
       </div>
+        </div>
+      )}
+
+      {activeTab === 'simulator' && (
+        <DisasterSimulator 
+          siteData={siteData} 
+          onSiteDataUpdate={onSiteDataUpdate}
+        />
+      )}
     </div>
   );
 };

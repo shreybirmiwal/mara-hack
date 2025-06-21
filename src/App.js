@@ -8,8 +8,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const handleDataUpdate = (newData) => {
-    setSiteData(newData);
+  const handleSiteDataUpdate = (newSiteData) => {
+    setSiteData(newSiteData);
   };
 
   useEffect(() => {
@@ -121,7 +121,7 @@ function App() {
           </div>
         </div>
         
-        <Sidebar siteData={siteData} onDataUpdate={handleDataUpdate} />
+        <Sidebar siteData={siteData} onSiteDataUpdate={handleSiteDataUpdate} />
       </div>
     </div>
   );

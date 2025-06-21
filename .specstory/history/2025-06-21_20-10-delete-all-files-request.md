@@ -9596,9 +9596,23 @@ Here is the api key for the agent.
 
 When I use these I want you to say something like pulling historic weather data for these events and then I want it to update the values manually but easy enough so that they can asily be restored back to their normal values 
 
+I want it to be an actual chatbot on the side that I can talk to 
+
 ---
 
 _**Assistant**_
+
+
+
+---
+
+
+
+---
+
+
+
+---
 
 
 

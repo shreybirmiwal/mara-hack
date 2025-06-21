@@ -181,8 +181,8 @@ function App() {
             };
           }
 
-          // Move towards target - increased speed by 15x for better visibility
-          const moveSpeed = person.movementSpeed * timeDelta * 15;
+          // Move towards target - increased speed by 75x for better visibility (5x faster than previous 15x)
+          const moveSpeed = person.movementSpeed * timeDelta * 75;
           const newLat = person.currentLat + (latDiff / distance) * moveSpeed;
           const newLng = person.currentLng + (lngDiff / distance) * moveSpeed;
 

@@ -739,11 +739,28 @@ def apply_scenario_effects(scenario, current_data):
         geographically_affected = find_affected_locations_by_geography(scenario, modified_data)
         
         if geographically_affected:
-            # Use geographic selection - filter by type if specified
+            # Use geographic selection - but we need to find the actual objects in modified_data
+            # rather than working with copies from find_affected_locations_by_geography
+            geographically_affected_codes = [loc['location_code'] for loc in geographically_affected]
+            
+            # Find actual objects in modified_data that match the geographic selection
+            actual_affected_locations = [
+                loc for loc in modified_data 
+                if loc['location_code'] in geographically_affected_codes
+            ]
+            
+            # Apply geographic info from the geographic selection
+            geographic_info_by_code = {loc['location_code']: loc for loc in geographically_affected}
+            for actual_loc in actual_affected_locations:
+                geo_info = geographic_info_by_code[actual_loc['location_code']]
+                actual_loc['distance_from_impact'] = geo_info['distance_from_impact']
+                actual_loc['impact_region'] = geo_info['impact_region']
+            
+            # Filter by type if specified
             if affected_types:
-                locations_to_affect = [loc for loc in geographically_affected if loc['type'] in affected_types]
+                locations_to_affect = [loc for loc in actual_affected_locations if loc['type'] in affected_types]
             else:
-                locations_to_affect = geographically_affected[:15]  # Limit to top 15 closest
+                locations_to_affect = actual_affected_locations[:15]  # Limit to top 15 closest
                 
             # Apply distance-based intensity (closer locations get higher multipliers)
             for i, location in enumerate(locations_to_affect):
@@ -1077,6 +1094,61 @@ def reset_to_baseline():
         return jsonify({
             'success': False,
             'error': f'Reset failed: {str(e)}'
+        }), 500
+
+@app.route('/api/debug-scenario-effects', methods=['POST'])
+def debug_scenario_effects():
+    """Debug endpoint to trace scenario effects step by step"""
+    try:
+        data = request.get_json()
+        scenario = data.get('scenario', 'hurricane hits Houston')
+        
+        # Step 1: Get base data
+        base_data = get_static_base_data()
+        logger.info(f"Step 1 - Base data: {len(base_data)} locations")
+        
+        # Step 2: Apply scenario effects
+        modified_data, effects_applied = apply_scenario_effects(scenario, base_data)
+        logger.info(f"Step 2 - After apply_scenario_effects: {len(effects_applied)} locations affected")
+        
+        # Check if scenario_affected field exists after apply_scenario_effects
+        affected_locations_with_flag = [loc for loc in modified_data if loc.get('scenario_affected', False)]
+        logger.info(f"Step 2.5 - Locations with scenario_affected=True: {len(affected_locations_with_flag)}")
+        
+        # Step 3: Apply unified calculations
+        modified_data = calculate_unified_price_changes(modified_data)
+        logger.info(f"Step 3 - After calculate_unified_price_changes")
+        
+        # Check if scenario_affected field still exists after calculate_unified_price_changes
+        affected_locations_after_calc = [loc for loc in modified_data if loc.get('scenario_affected', False)]
+        logger.info(f"Step 3.5 - Locations with scenario_affected=True after calc: {len(affected_locations_after_calc)}")
+        
+        # Find specific Houston Hub data
+        houston_hub = next((loc for loc in modified_data if loc['location_code'] == 'HB_HOUSTON'), None)
+        houston_effect = next((eff for eff in effects_applied if eff['location_code'] == 'HB_HOUSTON'), None)
+        
+        debug_info = {
+            'scenario': scenario,
+            'base_data_count': len(base_data),
+            'effects_applied_count': len(effects_applied),
+            'affected_with_flag_after_effects': len(affected_locations_with_flag),
+            'affected_with_flag_after_calc': len(affected_locations_after_calc),
+            'houston_hub_data': houston_hub,
+            'houston_effect_data': houston_effect,
+            'sample_affected_location': affected_locations_after_calc[0] if affected_locations_after_calc else None,
+            'sample_effect': effects_applied[0] if effects_applied else None
+        }
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in debug scenario effects: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500
 
 @app.route('/api/test-geographic-scenario', methods=['POST'])

@@ -631,22 +631,23 @@ def analyze_scenario():
         # Create a more detailed and varied prompt for multiple notifications
         effects_summary = json.dumps(effects_applied[:8], indent=2) if effects_applied else "Effects being calculated..."
         
-        prompt = "You are an energy market analyst for Texas ERCOT. A scenario has occurred: \"" + scenario + "\"\n\n"
-        prompt += "CURRENT IMPACTS DETECTED:\n" + effects_summary + "\n\n"
-        prompt += "Generate 2-4 different breaking news alerts about this scenario's impact on Texas energy markets.\n\n"
-        prompt += "REQUIREMENTS FOR EACH ALERT:\n"
-        prompt += "- Make each alert UNIQUE and focus on different aspects (prices, infrastructure, regions, specific facilities)\n"
-        prompt += "- Include SPECIFIC numbers, percentages, or location names from Texas\n"
-        prompt += "- Vary the tone and focus: some technical, some urgent, some economic impact\n"
-        prompt += "- Each should be 80-150 characters\n"
-        prompt += "- Use realistic Texas energy locations: Houston, Dallas, Lubbock, San Antonio, Midland, etc.\n"
-        prompt += "- Don't repeat the same percentage or impact - make each distinct\n\n"
-        prompt += "ALERT VARIETY EXAMPLES:\n"
-        prompt += "- Infrastructure: \"Lubbock wind farms report 85% capacity loss, ERCOT activates emergency reserves\"\n"
-        prompt += "- Market: \"Houston energy hub sees 340% price surge as demand outstrips supply\"\n"
-        prompt += "- Regional: \"West Texas grid operators scramble as 12 substations go offline\"\n"
-        prompt += "- Technical: \"ERCOT issues EEA Level 2, rotating outages possible in Dallas metro\"\n\n"
-        prompt += "Return ONLY a JSON array in this format: [\"First alert text\", \"Second alert text\", \"Third alert text\"]"
+        prompt = f"""Generate 3-4 breaking news alerts for Texas energy market about: {scenario}
+
+RULES:
+- Each alert must be a complete, standalone news headline
+- NO meta-commentary, explanations, or introductory text
+- NO "Here are the alerts" or "Let me know" type messages
+- Each alert should be 60-120 characters
+- Include specific Texas locations: Houston, Dallas, San Antonio, Austin, Lubbock
+- Include realistic numbers and percentages
+- Focus on immediate market impact
+
+EXAMPLES:
+"Houston energy prices spike 340% as hurricane disrupts Gulf Coast refineries"
+"ERCOT issues emergency alert: Dallas metro faces possible rolling blackouts"
+"West Texas wind farms offline, electricity prices jump 85% statewide"
+
+Return ONLY a clean JSON array like: ["Alert 1", "Alert 2", "Alert 3"]"""
 
         # Call the AI model with higher temperature for more variation
         try:
@@ -655,15 +656,15 @@ def analyze_scenario():
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are a professional energy market news analyst. Generate varied, specific breaking news alerts about energy market impacts. Each alert should be unique and focus on different aspects."
+                        "content": "You are a Texas energy market news reporter. Generate ONLY clean breaking news headlines. NO explanations, NO meta-commentary, NO introductions. Return ONLY a JSON array of news alerts."
                     },
                     {
                         "role": "user",
                         "content": prompt
                     }
                 ],
-                max_tokens=400,
-                temperature=0.9,  # Higher temperature for more variation
+                max_tokens=200,
+                temperature=0.3,  # Lower temperature for cleaner, more focused responses
                 extra_headers={
                     "HTTP-Referer": "http://localhost:3000",
                     "X-Title": "MARA Energy Analysis"
@@ -682,47 +683,89 @@ def analyze_scenario():
         
         ai_response = response.choices[0].message.content.strip()
         
-        # Try to parse as JSON, fallback to creating alerts from text
+        # Parse AI response and clean up alerts
         notifications = []
+        
+        def is_valid_alert(text):
+            """Check if text is a valid news alert"""
+            if not text or len(text) < 20 or len(text) > 200:
+                return False
+            
+            # Filter out meta-commentary
+            invalid_phrases = [
+                'here are', 'let me know', 'would you like', 'i can generate',
+                'breaking news alerts', 'about the impact', 'generate more',
+                'following alerts', 'these alerts'
+            ]
+            
+            text_lower = text.lower()
+            for phrase in invalid_phrases:
+                if phrase in text_lower:
+                    return False
+                    
+            return True
+        
         try:
+            # Try to parse as JSON first
             parsed_response = json.loads(ai_response)
             if isinstance(parsed_response, list):
                 for item in parsed_response:
-                    if isinstance(item, str) and len(item) > 20:
+                    if isinstance(item, str) and is_valid_alert(item):
                         notifications.append({
-                            'message': item,
+                            'message': item.strip(),
                             'type': 'alert',
                             'region': 'Texas',
                             'impact': 'High'
                         })
-                    elif isinstance(item, dict) and 'message' in item:
+                    elif isinstance(item, dict) and 'message' in item and is_valid_alert(item['message']):
                         notifications.append({
-                            'message': item['message'],
+                            'message': item['message'].strip(),
                             'type': 'alert',
                             'region': 'Texas',
                             'impact': 'High'
                         })
         except:
-            # Fallback: split by lines and create notifications
+            # Fallback: extract clean lines from text
             lines = [line.strip() for line in ai_response.split('\n') if line.strip()]
-            for line in lines[:4]:  # Max 4 notifications
+            
+            for line in lines:
                 # Clean up the line
-                clean_line = line.strip('"').strip("'").strip('-').strip('*').strip()
-                if len(clean_line) > 20:  # Only include substantial alerts
+                clean_line = line.strip('"').strip("'").strip('-').strip('*').strip(':').strip()
+                
+                # Remove any JSON formatting artifacts
+                clean_line = clean_line.replace('[', '').replace(']', '').replace('{', '').replace('}', '')
+                
+                if is_valid_alert(clean_line):
                     notifications.append({
                         'message': clean_line,
                         'type': 'alert',
                         'region': 'Texas',
                         'impact': 'High'
                     })
+                    
+                # Limit to 4 alerts max
+                if len(notifications) >= 4:
+                    break
         
-        # Ensure we have at least one notification
+        # Ensure we have at least one clean notification
         if not notifications:
+            # Generate a simple, clean fallback alert
+            if 'hurricane' in scenario.lower() or 'storm' in scenario.lower():
+                fallback_msg = "ERCOT activates emergency protocols as storm threatens Texas energy infrastructure"
+            elif 'heat' in scenario.lower():
+                fallback_msg = "Extreme heat drives Texas electricity demand to critical levels, prices surge"
+            elif 'wind' in scenario.lower():
+                fallback_msg = "High winds force wind farm shutdowns across West Texas, affecting grid stability"
+            elif 'solar' in scenario.lower():
+                fallback_msg = "Solar generation disruption impacts Texas renewable energy supply"
+            else:
+                fallback_msg = f"Texas energy markets respond to {scenario} with significant price volatility"
+                
             notifications = [{
-                'message': f"Market disruption from {scenario} affects Texas energy grid",
+                'message': fallback_msg,
                 'type': 'alert',
                 'region': 'Texas',
-                'impact': 'Medium'
+                'impact': 'High'
             }]
         
         return jsonify({

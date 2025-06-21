@@ -516,18 +516,7 @@ function App() {
             </div>
           </div>
 
-          {/* Instructions */}
-          <div className="p-4">
-            <h3 className="text-md font-bold text-gray-400 mb-3">How to Use</h3>
-            <div className="space-y-2 text-sm text-gray-300">
-              <div>• <strong>Click</strong> energy points for detailed info</div>
-              <div>• <strong>Drag</strong> to pan around the map</div>
-              <div>• <strong>Scroll</strong> to zoom in/out</div>
-              <div>• <strong>Heatmap</strong> shows price intensity</div>
-              <div>• <strong>Regions</strong> show energy zones</div>
-              <div>• Data updates every 5 minutes</div>
-            </div>
-          </div>
+
 
           {/* Error Display */}
           {error && (

@@ -1,3 +1,26 @@
+#IGNORE DO NOT READ THIS IS OLD
+
+
+# Plan Summary & Flow
+
+1.  **User Input:** User asks a natural language question (e.g., "what if a heatwave hits Texas?").
+2.  **AI Interpreter (LLM #1):** An LLM call translates the user's question into a structured JSON object (`{ "event": "heatwave", "location": "ERCOT" }`).
+3.  **Backend Logic (The "Analog Engine"):**
+    *   The backend receives the JSON.
+    *   Based on the event and location, it knows which historical dataset to query (e.g., `ercot_temperature_forecast_by_weather_zone`).
+    *   It finds a date where a similar event actually happened (e.g., finds a day with >100°F temps).
+4.  **Data Retrieval:** The backend fetches all relevant data for that historical date:
+    *   **Prices:** from `ercot_spp_day_ahead_hourly`.
+    *   **Demand/Load:** from `ercot_load_forecast_by_weather_zone`.
+    *   ...and other relevant metrics.
+5.  **Simulation & Visualization:**
+    *   The backend sends this data bundle to the frontend.
+    *   The frontend uses the price data to color a **static GeoJSON map** of ERCOT zones.
+    *   It also uses the data to draw time-series charts (price, demand, etc.).
+6.  **AI Narrative (LLM #2):** The data bundle is sent to another LLM to generate a human-readable summary of the event, which is displayed to the user.
+
+
+
 # prompt
 Design an AI driven trading system that will arbitrage energy and inference marketplace prices to optimize compute allocation, while utilizing bitcoin miners and HPC servers to fulfill that demand.
 Here were some of the ideas we mentioned, but not limited to
@@ -715,7 +738,7 @@ This is a practical, phased approach to ensure you have a working, impressive de
 1.  **Pick Your Battles (Data Selection):**
     *   **Focus on ONE Independent System Operator (ISO) first.** **ERCOT (Texas)** is the perfect starting point. You have the richest data for it, including the crucial `ercot_temperature_forecast_by_weather_zone` which is essential for your weather-based scenarios.
     *   **Select Key Datasets.** Don't try to use all 600+. Start with the essentials:
-        *   **Prices:** `ercot_lmp_day_ahead_hourly` (The price of electricity)
+        *   **Prices:** `ercot_spp_day_ahead_hourly` (The price of electricity at different points on the grid)
         *   **Demand:** `ercot_load_forecast_by_weather_zone` (How much power is needed)
         *   **Renewables:** `ercot_solar_actual_and_forecast_hourly`, `ercot_wind_actual_and_forecast_hourly`
         *   **Inputs:** `ercot_temperature_forecast_by_weather_zone` (The trigger for your first scenario)

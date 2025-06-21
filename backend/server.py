@@ -49,6 +49,13 @@ _price_history = {
     'current_scenario_data': None  # Store the most recent scenario-affected data
 }
 
+# People data storage
+_people_data = {
+    'current_people': None,  # Store current people state
+    'base_people': None,  # Store original people data
+    'people_reactions': []  # Store people's reactions to events
+}
+
 # Static base prices for each location type (not fetched from API)
 BASE_PRICES = {
     'Solar': 25.0,
@@ -376,6 +383,127 @@ def fetch_fresh_data():
     except Exception as e:
         logger.error(f"Error getting fresh data: {str(e)}")
         return []
+
+def generate_people_reactions(scenario, people_data, affected_locations):
+    """Generate AI reactions for people based on the scenario"""
+    if not ai_client:
+        logger.warning("OpenRouter API not configured - using default reactions")
+        return generate_default_people_reactions(scenario, people_data)
+    
+    try:
+        # Create a prompt for the AI to generate reactions
+        people_sample = people_data[:10]  # Use first 10 people as sample
+        location_names = [loc.get('name', 'Unknown') for loc in affected_locations[:5]]
+        
+        prompt = f"""
+        Scenario: {scenario}
+        
+        Affected locations: {', '.join(location_names)}
+        
+        Generate funny, unique reactions for these people based on their personalities. Each person should react differently based on their profession and personality. Make the reactions humorous but believable.
+        
+        People:
+        """
+        
+        for person in people_sample:
+            prompt += f"- {person['name']}: {person['profession']} (personality: {person['personality']})\n"
+        
+        prompt += """
+        
+        Return a JSON array with this format:
+        [
+            {
+                "id": 1,
+                "reaction": "Oh no! My crypto portfolio during a disaster!",
+                "shouldMove": true,
+                "newLat": 30.1234,
+                "newLng": -97.5678
+            }
+        ]
+        
+        Make each reaction 1-2 sentences, funny, and true to their character. If they should move locations due to the scenario, set shouldMove to true and provide new coordinates within Texas.
+        """
+        
+        response = ai_client.chat.completions.create(
+            model="anthropic/claude-3.5-sonnet",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.8,
+            max_tokens=2000
+        )
+        
+        reaction_text = response.choices[0].message.content.strip()
+        logger.info(f"AI reaction response: {reaction_text}")
+        
+        # Try to parse JSON response
+        try:
+            if '```json' in reaction_text:
+                json_start = reaction_text.find('```json') + 7
+                json_end = reaction_text.find('```', json_start)
+                reaction_text = reaction_text[json_start:json_end].strip()
+            elif '[' in reaction_text:
+                json_start = reaction_text.find('[')
+                json_end = reaction_text.rfind(']') + 1
+                reaction_text = reaction_text[json_start:json_end]
+            
+            reactions = json.loads(reaction_text)
+            
+            # Generate reactions for all people based on AI sample
+            all_reactions = []
+            for person in people_data:
+                if person['id'] <= len(reactions):
+                    reaction = reactions[person['id'] - 1]
+                    all_reactions.append({
+                        'id': person['id'],
+                        'reaction': reaction.get('reaction', f"This {scenario.lower()} is crazy!"),
+                        'shouldMove': reaction.get('shouldMove', random.choice([True, False])),
+                        'newLat': reaction.get('newLat', person['lat'] + random.uniform(-0.1, 0.1)),
+                        'newLng': reaction.get('newLng', person['lng'] + random.uniform(-0.1, 0.1))
+                    })
+                else:
+                    # Generate based on personality for remaining people
+                    all_reactions.append(generate_personality_reaction(person, scenario))
+            
+            return all_reactions
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse AI reaction JSON: {e}")
+            return generate_default_people_reactions(scenario, people_data)
+            
+    except Exception as e:
+        logger.error(f"Error generating AI people reactions: {e}")
+        return generate_default_people_reactions(scenario, people_data)
+
+def generate_personality_reaction(person, scenario):
+    """Generate reaction based on person's personality"""
+    personality_reactions = {
+        'anxious_perfectionist': [f"Oh no, this {scenario} is going to ruin everything!", "I need to make a plan immediately!"],
+        'assertive_leader': [f"I demand answers about this {scenario}!", "Someone needs to take charge here!"],
+        'optimistic_risk_taker': [f"This {scenario} is just another opportunity!", "Diamond hands through the chaos!"],
+        'social_butterfly': [f"OMG everyone, this {scenario} is literally insane!", "This is going to break the internet!"],
+        'practical_grumpy': [f"Great, another {scenario} to deal with...", "This is why we can't have nice things."],
+        'zen_master': [f"The {scenario} is just the universe's way of teaching us.", "I must find my center during this chaos."],
+        'hyperactive': [f"WOAH THIS {scenario.upper()} IS INTENSE!!!", "I NEED TO DO SOMETHING RIGHT NOW!!!"],
+        'stressed_parent': [f"How do I explain this {scenario} to my kids?", "Is my family safe during this?"],
+        'competitive_alpha': [f"I can handle this {scenario} better than anyone!", "Time to show what I'm made of!"],
+        'nurturing_obsessive': [f"My plants/pets need protection from this {scenario}!", "Everything I care about is in danger!"]
+    }
+    
+    reactions = personality_reactions.get(person['personality'], [f"This {scenario} is something else!", "What a day this turned out to be..."])
+    
+    return {
+        'id': person['id'],
+        'reaction': random.choice(reactions),
+        'shouldMove': random.choice([True, False]),
+        'newLat': person['lat'] + random.uniform(-0.1, 0.1),
+        'newLng': person['lng'] + random.uniform(-0.1, 0.1)
+    }
+
+def generate_default_people_reactions(scenario, people_data):
+    """Generate default reactions when AI is not available"""
+    reactions = []
+    for person in people_data:
+        reactions.append(generate_personality_reaction(person, scenario))
+    return reactions
 
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -1039,6 +1167,103 @@ def debug_prices():
         
     except Exception as e:
         logger.error(f"Error in debug prices: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/people-data', methods=['GET'])
+def get_people_data():
+    """Get current people data"""
+    try:
+        # If we have current people data, return it
+        if _people_data['current_people']:
+            return jsonify({
+                'success': True,
+                'people': _people_data['current_people'],
+                'reactions': _people_data['people_reactions']
+            })
+        
+        # Otherwise return empty data
+        return jsonify({
+            'success': True,
+            'people': [],
+            'reactions': []
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting people data: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/update-people', methods=['POST'])
+def update_people():
+    """Update people data from frontend"""
+    try:
+        data = request.get_json()
+        people_data = data.get('people', [])
+        
+        # Store the people data
+        _people_data['current_people'] = people_data
+        if not _people_data['base_people']:
+            _people_data['base_people'] = [person.copy() for person in people_data]
+        
+        return jsonify({
+            'success': True,
+            'message': 'People data updated successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating people data: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/people-reactions', methods=['POST'])
+def generate_people_scenario_reactions():
+    """Generate people reactions to a scenario"""
+    try:
+        data = request.get_json()
+        scenario = data.get('scenario', '')
+        people_data = data.get('people', [])
+        affected_locations = data.get('affected_locations', [])
+        
+        if not scenario or not people_data:
+            return jsonify({
+                'success': False,
+                'error': 'Scenario and people data required'
+            }), 400
+        
+        # Generate reactions
+        reactions = generate_people_reactions(scenario, people_data, affected_locations)
+        
+        # Store reactions
+        _people_data['people_reactions'] = reactions
+        
+        # Create news updates based on people movements
+        migration_news = []
+        movers = [r for r in reactions if r.get('shouldMove', False)]
+        if len(movers) > 5:
+            migration_news.append({
+                'message': f'Mass migration: {len(movers)} people are relocating due to {scenario}',
+                'type': 'demographic',
+                'impact': 'Medium',
+                'region': 'Statewide'
+            })
+        
+        return jsonify({
+            'success': True,
+            'reactions': reactions,
+            'migration_news': migration_news,
+            'total_affected': len(reactions),
+            'total_relocating': len(movers)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating people reactions: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)

@@ -306,3 +306,157 @@
         max-width: 300px !important;
     }
 }
+
+/* People Simulation Styles */
+.people-dot {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    animation: float 3s ease-in-out infinite;
+}
+
+.people-dot:hover {
+    transform: scale(1.5);
+    filter: brightness(1.2);
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-2px);
+    }
+}
+
+/* People popup specific styles */
+.people-popup .mapboxgl-popup-content {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+    border: 2px solid #0ea5e9 !important;
+}
+
+.people-popup .mapboxgl-popup-tip {
+    border-top-color: #0ea5e9 !important;
+}
+
+/* People status indicators */
+.people-status-normal {
+    background: linear-gradient(135deg, #22d3ee, #0891b2);
+}
+
+.people-status-excited {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    animation: excited-pulse 1s ease-in-out infinite;
+}
+
+.people-status-worried {
+    background: linear-gradient(135deg, #f87171, #ef4444);
+    animation: worried-shake 0.5s ease-in-out infinite;
+}
+
+.people-status-moving {
+    background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+    animation: moving-glow 2s ease-in-out infinite;
+}
+
+@keyframes excited-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+@keyframes worried-shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-1px);
+    }
+
+    75% {
+        transform: translateX(1px);
+    }
+}
+
+@keyframes moving-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(139, 92, 246, 0.5);
+    }
+
+    50% {
+        box-shadow: 0 0 15px rgba(139, 92, 246, 0.8), 0 0 25px rgba(139, 92, 246, 0.4);
+    }
+}
+
+/* Thought bubble styling */
+.thought-bubble {
+    background: white;
+    border: 2px solid #3b82f6;
+    border-radius: 15px;
+    padding: 8px 12px;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    max-width: 250px;
+    font-style: italic;
+    color: #1e40af;
+}
+
+.thought-bubble::before {
+    content: '💭';
+    position: absolute;
+    left: -8px;
+    top: -8px;
+    font-size: 16px;
+}
+
+/* Personality-based styling */
+.personality-anxious {
+    border-color: #ef4444 !important;
+    color: #dc2626 !important;
+}
+
+.personality-confident {
+    border-color: #10b981 !important;
+    color: #047857 !important;
+}
+
+.personality-creative {
+    border-color: #8b5cf6 !important;
+    color: #7c3aed !important;
+}
+
+.personality-social {
+    border-color: #f59e0b !important;
+    color: #d97706 !important;
+}
+
+.personality-zen {
+    border-color: #06b6d4 !important;
+    color: #0891b2 !important;
+}
+
+/* Migration trail effect */
+.migration-trail {
+    opacity: 0.6;
+    stroke-dasharray: 5, 5;
+    animation: march 1s linear infinite;
+}
+
+@keyframes march {
+    to {
+        stroke-dashoffset: -10;
+    }
+}

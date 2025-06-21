@@ -103,6 +103,78 @@ function App() {
     // Removed auto-refresh - price changes now only happen when scenarios are run
   }, []);
 
+  // Initialize people with random movement targets
+  useEffect(() => {
+    const initializedPeople = peopleData.map(person => ({
+      ...person,
+      currentLat: person.lat,
+      currentLng: person.lng,
+      targetLat: person.lat + (Math.random() - 0.5) * 0.1,
+      targetLng: person.lng + (Math.random() - 0.5) * 0.1,
+      currentThought: person.defaultThought,
+      lastUpdated: Date.now()
+    }));
+    setPeople(initializedPeople);
+
+    // Send people data to backend
+    if (initializedPeople.length > 0) {
+      axios.post('http://localhost:5001/api/update-people', {
+        people: initializedPeople
+      }).catch(error => {
+        console.error('Error syncing people data with backend:', error);
+      });
+    }
+  }, []);
+
+  // Animate people movement
+  useEffect(() => {
+    const animatePeople = () => {
+      setPeople(prevPeople => {
+        return prevPeople.map(person => {
+          const now = Date.now();
+          const timeDelta = (now - person.lastUpdated) / 1000;
+
+          // Calculate movement towards target
+          const latDiff = person.targetLat - person.currentLat;
+          const lngDiff = person.targetLng - person.currentLng;
+          const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+
+          // If close to target, set new random target
+          if (distance < 0.001) {
+            const newTargetLat = person.lat + (Math.random() - 0.5) * 0.2;
+            const newTargetLng = person.lng + (Math.random() - 0.5) * 0.2;
+            return {
+              ...person,
+              targetLat: newTargetLat,
+              targetLng: newTargetLng,
+              lastUpdated: now
+            };
+          }
+
+          // Move towards target
+          const moveSpeed = person.movementSpeed * timeDelta;
+          const newLat = person.currentLat + (latDiff / distance) * moveSpeed;
+          const newLng = person.currentLng + (lngDiff / distance) * moveSpeed;
+
+          return {
+            ...person,
+            currentLat: newLat,
+            currentLng: newLng,
+            lastUpdated: now
+          };
+        });
+      });
+    };
+
+    animationRef.current = setInterval(animatePeople, 100); // Update every 100ms
+
+    return () => {
+      if (animationRef.current) {
+        clearInterval(animationRef.current);
+      }
+    };
+  }, [people.length]); // Only recreate when people array length changes
+
   // Create GeoJSON for energy locations
   const energyLocationsGeoJSON = {
     type: 'FeatureCollection',
@@ -114,6 +186,22 @@ function App() {
       },
       properties: {
         ...location
+      }
+    }))
+  };
+
+  // Create GeoJSON for people
+  const peopleGeoJSON = {
+    type: 'FeatureCollection',
+    features: people.map(person => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [person.currentLng, person.currentLat]
+      },
+      properties: {
+        ...person,
+        layerType: 'person'
       }
     }))
   };
@@ -224,10 +312,31 @@ function App() {
     }
   };
 
+  // People layer
+  const peopleLayer = {
+    id: 'people-points',
+    type: 'circle',
+    paint: {
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        4, 3,
+        8, 6,
+        12, 8
+      ],
+      'circle-color': '#22d3ee',
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#ffffff',
+      'circle-opacity': 0.8
+    }
+  };
+
   const onMapClick = (event) => {
     const features = event.features;
     if (features && features.length > 0) {
       const feature = features[0];
+
       if (feature.layer.id === 'energy-points') {
         const clickedLocationCode = feature.properties.location_code;
 
@@ -240,6 +349,19 @@ function App() {
             coordinates: feature.geometry.coordinates
           });
           setShowPopup(true);
+          setShowPersonPopup(false); // Close person popup if open
+        }
+      } else if (feature.layer.id === 'people-points') {
+        const clickedPersonId = feature.properties.id;
+        const currentPerson = people.find(person => person.id === clickedPersonId);
+
+        if (currentPerson) {
+          setSelectedPerson({
+            ...currentPerson,
+            coordinates: feature.geometry.coordinates
+          });
+          setShowPersonPopup(true);
+          setShowPopup(false); // Close energy popup if open
         }
       }
     }
@@ -296,6 +418,7 @@ function App() {
 
     setIsProcessingScenario(true);
     try {
+      // First, process the energy scenario
       const response = await axios.post('http://localhost:5001/api/scenario-analysis', {
         scenario: chatInput.trim(),
         current_data: energyData
@@ -344,6 +467,54 @@ function App() {
           }
         }
 
+        // Generate people reactions to the scenario
+        if (people.length > 0) {
+          try {
+            const peopleReactionResponse = await axios.post('http://localhost:5001/api/people-reactions', {
+              scenario: chatInput.trim(),
+              people: people,
+              affected_locations: response.data.effects_summary || []
+            });
+
+            if (peopleReactionResponse.data.success) {
+              const reactions = peopleReactionResponse.data.reactions;
+
+              // Update people with their reactions and new locations
+              setPeople(prevPeople => {
+                return prevPeople.map(person => {
+                  const reaction = reactions.find(r => r.id === person.id);
+                  if (reaction) {
+                    return {
+                      ...person,
+                      currentThought: reaction.reaction,
+                      targetLat: reaction.shouldMove ? reaction.newLat : person.targetLat,
+                      targetLng: reaction.shouldMove ? reaction.newLng : person.targetLng,
+                      lastUpdated: Date.now()
+                    };
+                  }
+                  return person;
+                });
+              });
+
+              // Add migration news if available
+              if (peopleReactionResponse.data.migration_news && peopleReactionResponse.data.migration_news.length > 0) {
+                const migrationNotifications = peopleReactionResponse.data.migration_news.map((news, index) => ({
+                  id: Date.now() + 1000 + index,
+                  ...news,
+                  timestamp: new Date()
+                }));
+
+                setNotifications(prev => [...prev, ...migrationNotifications]);
+              }
+
+              console.log(`Generated reactions for ${reactions.length} people, ${peopleReactionResponse.data.total_relocating} are relocating`);
+            }
+          } catch (peopleError) {
+            console.error('Error generating people reactions:', peopleError);
+            // Don't fail the whole scenario if people reactions fail
+          }
+        }
+
         setChatInput('');
       }
     } catch (error) {
@@ -367,14 +538,27 @@ function App() {
         setScenarioEffectsActive(false);
         setError(null);
 
-        // Close popup if open
+        // Reset people to their default thoughts and original locations
+        setPeople(prevPeople => {
+          return prevPeople.map(person => ({
+            ...person,
+            currentThought: person.defaultThought,
+            targetLat: person.lat + (Math.random() - 0.5) * 0.1,
+            targetLng: person.lng + (Math.random() - 0.5) * 0.1,
+            lastUpdated: Date.now()
+          }));
+        });
+
+        // Close popups if open
         setShowPopup(false);
+        setShowPersonPopup(false);
         setSelectedLocation(null);
+        setSelectedPerson(null);
 
         // Show success message briefly
         setNotifications([{
           id: Date.now(),
-          message: 'System reset to baseline prices - all scenarios cleared',
+          message: 'System reset to baseline - energy prices and people reactions cleared',
           type: 'info',
           region: 'System',
           impact: 'Low',
@@ -691,7 +875,7 @@ function App() {
           mapStyle="mapbox://styles/mapbox/dark-v11"
           mapboxAccessToken={MAPBOX_TOKEN}
           onClick={onMapClick}
-          interactiveLayerIds={['energy-points']}
+          interactiveLayerIds={['energy-points', 'people-points']}
           terrain={{ source: 'mapbox-dem', exaggeration: 1.5 }}
         >
           {/* Terrain Source */}
@@ -708,6 +892,11 @@ function App() {
             <Layer {...heatmapLayer} />
             <Layer {...energyPointsLayer} />
             {scenarioEffectsActive && <Layer {...scenarioEffectsLayer} />}
+          </Source>
+
+          {/* People Data Source and Layer */}
+          <Source id="people-data" type="geojson" data={peopleGeoJSON}>
+            <Layer {...peopleLayer} />
           </Source>
 
           {/* Location Popup */}
@@ -816,21 +1005,92 @@ function App() {
               </div>
             </Popup>
           )}
+
+          {/* Person Popup */}
+          {showPersonPopup && selectedPerson && (
+            <Popup
+              longitude={selectedPerson.coordinates[0]}
+              latitude={selectedPerson.coordinates[1]}
+              onClose={() => setShowPersonPopup(false)}
+              closeButton={true}
+              closeOnClick={false}
+              className="custom-popup people-popup"
+            >
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl">{selectedPerson.emoji}</span>
+                    <div>
+                      <h3 className="font-bold text-lg text-gray-800">{selectedPerson.name}</h3>
+                      <div className="text-sm text-gray-600">{selectedPerson.profession}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div className="bg-blue-50 border-l-4 border-blue-400 p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="text-blue-600">💭</span>
+                      <span className="text-blue-800 font-semibold">Current Thought:</span>
+                    </div>
+                    <div className="text-blue-800 italic">
+                      "{selectedPerson.currentThought}"
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Personality:</span>
+                    <span className="font-semibold text-gray-800 capitalize">
+                      {selectedPerson.personality.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Movement Speed:</span>
+                    <span className="font-semibold text-gray-800">
+                      {selectedPerson.movementSpeed.toFixed(4)} units/sec
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Location:</span>
+                    <span className="font-semibold text-gray-800">
+                      {selectedPerson.currentLat.toFixed(4)}, {selectedPerson.currentLng.toFixed(4)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Popup>
+          )}
         </Map>
+
+        {/* People Status Display - Top Left */}
+        <div className="absolute top-4 left-4 z-50">
+          <div className="bg-blue-900 bg-opacity-90 text-white px-4 py-2 rounded-lg shadow-lg border border-blue-700">
+            <div className="flex items-center space-x-2">
+              <span className="text-lg">👥</span>
+              <div className="text-sm">
+                <div className="font-bold">{people.length} People Simulated</div>
+                <div className="text-xs opacity-90">
+                  {people.filter(p => p.currentThought !== p.defaultThought).length} reacting to events
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Scenario Status Indicator - Top Right */}
         {scenarioEffectsActive && (
           <div className="absolute top-4 right-[25rem] z-50">
-            <>
-            </>
-            {/* <div className="bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg border border-yellow-500">
+            <div className="bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg border border-yellow-500">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                 <span className="text-sm font-bold">SCENARIO SIMULATION ACTIVE</span>
               </div>
-              {/* <div className="text-xs opacity-90 mt-1">
-                Simulation running indefinitely
-              </div> */}
+              <div className="text-xs opacity-90 mt-1">
+                People and energy reacting to events
+              </div>
+            </div>
           </div>
         )}
 

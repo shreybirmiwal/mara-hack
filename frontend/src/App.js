@@ -59,7 +59,7 @@ function App() {
   const [chatInput, setChatInput] = useState('');
   const [isProcessingScenario, setIsProcessingScenario] = useState(false);
   const [scenarioEffectsActive, setScenarioEffectsActive] = useState(false);
-  const [showNewsTab, setShowNewsTab] = useState(false);
+  const [showNewsTab, setShowNewsTab] = useState(true); // Always show news panel
   const [allEffects, setAllEffects] = useState([]);
 
   const mapRef = useRef();
@@ -300,11 +300,7 @@ function App() {
             setAllEffects(prev => [...prev, ...response.data.effects_summary]);
           }
 
-          // Reset to original data after 2 minutes
-          setTimeout(() => {
-            fetchData();
-            setScenarioEffectsActive(false);
-          }, 120000);
+          // Simulation now runs indefinitely - no auto-reset
         }
 
         setChatInput('');
@@ -436,130 +432,111 @@ function App() {
         </div>
       )}
 
-      {/* News/Nodes Tab Toggle Button */}
-      <button
-        onClick={() => setShowNewsTab(!showNewsTab)}
-        className="fixed top-4 right-4 z-50 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg transition-colors duration-200 flex items-center space-x-2"
-      >
-        <span>📰</span>
-        <span>{showNewsTab ? 'Hide' : 'Show'} News & Nodes</span>
-        {notifications.length > 0 && (
-          <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-            {notifications.length}
-          </span>
-        )}
-      </button>
+      {/* News panel is now always visible */}
 
-      {/* News/Nodes Side Panel */}
-      {showNewsTab && (
-        <div className="fixed top-0 right-0 w-96 h-full bg-gray-900 bg-opacity-95 backdrop-blur-sm z-40 overflow-y-auto border-l border-gray-700">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white text-xl font-bold flex items-center space-x-2">
-                <span>📰</span>
-                <span>Live News & Affected Nodes</span>
-              </h2>
-              <button
-                onClick={() => setShowNewsTab(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Active Notifications */}
-            {notifications.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-white text-lg font-semibold mb-3 flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                  <span>Breaking News</span>
-                </h3>
-                <div className="space-y-3">
-                  {notifications.map((notification) => (
-                    <div key={notification.id} className="bg-red-800 bg-opacity-50 p-3 rounded-lg border border-red-600">
-                      <div className="text-red-200 text-sm font-medium">
-                        {notification.timestamp.toLocaleTimeString()} | {notification.region || 'Texas Grid'}
-                      </div>
-                      <div className="text-white text-sm mt-1">
-                        {notification.message}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Affected Nodes */}
-            {allEffects.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-white text-lg font-semibold mb-3 flex items-center space-x-2">
-                  <span>⚡</span>
-                  <span>Affected Nodes ({allEffects.length})</span>
-                </h3>
-                <div className="space-y-2">
-                  {allEffects.map((effect, index) => (
-                    <div key={index} className="bg-gray-800 bg-opacity-70 p-3 rounded-lg border border-gray-600 hover:bg-gray-700 cursor-pointer transition-colors duration-200"
-                      onClick={() => {
-                        // Find the location in energyData to get coordinates
-                        const location = energyData.find(loc => loc.name === effect.location);
-                        if (location) {
-                          zoomToLocation(location.lat, location.lng, location.name);
-                          setShowNewsTab(false); // Close tab after clicking
-                        }
-                      }}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="text-white font-semibold text-sm">
-                          {effect.location}
-                        </div>
-                        <div className={`text-sm font-bold ${effect.change_percent > 0 ? 'text-red-400' : 'text-green-400'
-                          }`}>
-                          {effect.change_percent > 0 ? '▲' : '▼'} {Math.abs(effect.change_percent)}%
-                        </div>
-                      </div>
-                      <div className="text-gray-300 text-xs mb-2">
-                        {effect.effect}
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-gray-400">
-                          ${effect.old_price.toFixed(2)} → ${effect.new_price.toFixed(2)}
-                        </span>
-                        <span className="text-blue-400 hover:text-blue-300">
-                          📍 Zoom to location
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Clear All Button */}
-            {(notifications.length > 0 || allEffects.length > 0) && (
-              <button
-                onClick={() => {
-                  setNotifications([]);
-                  setAllEffects([]);
-                }}
-                className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors duration-200"
-              >
-                Clear All News & Effects
-              </button>
-            )}
-
-            {/* No Data State */}
-            {notifications.length === 0 && allEffects.length === 0 && (
-              <div className="text-center text-gray-400 py-8">
-                <div className="text-4xl mb-4">📡</div>
-                <div className="text-lg mb-2">No active news or effects</div>
-                <div className="text-sm">
-                  Run a scenario simulation to see live updates and affected nodes here.
-                </div>
-              </div>
-            )}
+      {/* News/Nodes Side Panel - Always Visible */}
+      <div className="fixed top-0 right-0 w-96 h-full bg-gray-900 bg-opacity-95 backdrop-blur-sm z-40 overflow-y-auto border-l border-gray-700">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-white text-xl font-bold flex items-center space-x-2">
+              <span>📰</span>
+              <span>Live News & Affected Nodes</span>
+            </h2>
+            {/* Close button removed - panel always visible */}
           </div>
+
+          {/* Active Notifications */}
+          {notifications.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-white text-lg font-semibold mb-3 flex items-center space-x-2">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                <span>Breaking News</span>
+              </h3>
+              <div className="space-y-3">
+                {notifications.map((notification) => (
+                  <div key={notification.id} className="bg-red-800 bg-opacity-50 p-3 rounded-lg border border-red-600">
+                    <div className="text-red-200 text-sm font-medium">
+                      {notification.timestamp.toLocaleTimeString()} | {notification.region || 'Texas Grid'}
+                    </div>
+                    <div className="text-white text-sm mt-1">
+                      {notification.message}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Affected Nodes */}
+          {allEffects.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-white text-lg font-semibold mb-3 flex items-center space-x-2">
+                <span>⚡</span>
+                <span>Affected Nodes ({allEffects.length})</span>
+              </h3>
+              <div className="space-y-2">
+                {allEffects.map((effect, index) => (
+                  <div key={index} className="bg-gray-800 bg-opacity-70 p-3 rounded-lg border border-gray-600 hover:bg-gray-700 cursor-pointer transition-colors duration-200"
+                    onClick={() => {
+                      // Find the location in energyData to get coordinates
+                      const location = energyData.find(loc => loc.name === effect.location);
+                      if (location) {
+                        zoomToLocation(location.lat, location.lng, location.name);
+                        // Panel stays open since it's always visible now
+                      }
+                    }}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="text-white font-semibold text-sm">
+                        {effect.location}
+                      </div>
+                      <div className={`text-sm font-bold ${effect.change_percent > 0 ? 'text-red-400' : 'text-green-400'
+                        }`}>
+                        {effect.change_percent > 0 ? '▲' : '▼'} {Math.abs(effect.change_percent)}%
+                      </div>
+                    </div>
+                    <div className="text-gray-300 text-xs mb-2">
+                      {effect.effect}
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-400">
+                        ${effect.old_price.toFixed(2)} → ${effect.new_price.toFixed(2)}
+                      </span>
+                      <span className="text-blue-400 hover:text-blue-300">
+                        📍 Zoom to location
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Clear All Button */}
+          {(notifications.length > 0 || allEffects.length > 0) && (
+            <button
+              onClick={() => {
+                setNotifications([]);
+                setAllEffects([]);
+              }}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors duration-200"
+            >
+              Clear All News & Effects
+            </button>
+          )}
+
+          {/* No Data State */}
+          {notifications.length === 0 && allEffects.length === 0 && (
+            <div className="text-center text-gray-400 py-8">
+              <div className="text-4xl mb-4">📡</div>
+              <div className="text-lg mb-2">No active news or effects</div>
+              <div className="text-sm">
+                Run a scenario simulation to see live updates and affected nodes here.
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Map Container */}
       <div className="relative h-full">
@@ -685,22 +662,22 @@ function App() {
         </Map>
 
         {/* Scenario Status Indicator - Top Right */}
-        {scenarioEffectsActive && !showNewsTab && (
-          <div className="absolute top-16 right-4 z-50">
+        {scenarioEffectsActive && (
+          <div className="absolute top-4 right-[25rem] z-50">
             <div className="bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg border border-yellow-500">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                 <span className="text-sm font-bold">SCENARIO SIMULATION ACTIVE</span>
               </div>
               <div className="text-xs opacity-90 mt-1">
-                Effects will reset in 2 minutes
+                Simulation running indefinitely
               </div>
             </div>
           </div>
         )}
 
         {/* AI Scenario Chat Interface - Bottom */}
-        <div className="absolute bottom-4 left-4 right-4 z-40">
+        <div className="absolute bottom-4 left-4 right-[25rem] z-40">
           <div className="bg-gray-800 bg-opacity-95 backdrop-blur-sm rounded-lg shadow-2xl border border-gray-700">
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">

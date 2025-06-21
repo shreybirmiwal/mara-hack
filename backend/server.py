@@ -749,17 +749,25 @@ Return ONLY a clean JSON array like: ["Alert 1", "Alert 2", "Alert 3"]"""
         
         # Ensure we have at least one clean notification
         if not notifications:
-            # Generate a simple, clean fallback alert
+            # Generate a descriptive fallback alert based on scenario
             if 'hurricane' in scenario.lower() or 'storm' in scenario.lower():
-                fallback_msg = "ERCOT activates emergency protocols as storm threatens Texas energy infrastructure"
+                fallback_msg = "Hurricane in West Texas causes massive price increases across ERCOT grid"
             elif 'heat' in scenario.lower():
-                fallback_msg = "Extreme heat drives Texas electricity demand to critical levels, prices surge"
+                fallback_msg = "Extreme heat wave in Texas drives electricity prices to record highs"
+            elif 'freeze' in scenario.lower() or 'winter' in scenario.lower() or 'ice' in scenario.lower():
+                fallback_msg = "Winter freeze in Texas causes widespread power plant outages and price spikes"
             elif 'wind' in scenario.lower():
-                fallback_msg = "High winds force wind farm shutdowns across West Texas, affecting grid stability"
-            elif 'solar' in scenario.lower():
-                fallback_msg = "Solar generation disruption impacts Texas renewable energy supply"
+                fallback_msg = "High winds shut down West Texas wind farms, electricity prices surge 200%"
+            elif 'solar' in scenario.lower() or 'hail' in scenario.lower():
+                fallback_msg = "Solar panel damage across Texas causes renewable energy shortage and price jumps"
+            elif 'cyber' in scenario.lower() or 'hack' in scenario.lower():
+                fallback_msg = "Cyberattack on Texas grid infrastructure triggers emergency pricing protocols"
+            elif 'earthquake' in scenario.lower():
+                fallback_msg = "Earthquake in West Texas damages power plants, causing statewide price volatility"
+            elif 'fire' in scenario.lower():
+                fallback_msg = "Wildfire near Houston refineries disrupts energy supply, prices skyrocket"
             else:
-                fallback_msg = f"Texas energy markets respond to {scenario} with significant price volatility"
+                fallback_msg = f"'{scenario}' event in Texas causes widespread energy market disruption and price spikes"
                 
             notifications = [{
                 'message': fallback_msg,

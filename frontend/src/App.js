@@ -6,9 +6,14 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({});
   const [prices, setPrices] = useState([]);
+  const [profitability, setProfitability] = useState({});
+  const [events, setEvents] = useState({});
   const [error, setError] = useState(null);
+  const [optimizing, setOptimizing] = useState(false);
+  const [eventDescription, setEventDescription] = useState('');
+  const [siteProfitability, setSiteProfitability] = useState({});
 
-  const API_BASE = 'http://127.0.0.1:5000/api';
+  const API_BASE = 'http://127.0.0.1:5001/api';
 
   useEffect(() => {
     fetchData();
@@ -17,21 +22,69 @@ function App() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [sitesRes, statsRes, pricesRes] = await Promise.all([
+      const [sitesRes, statsRes, pricesRes, profitRes, eventsRes] = await Promise.all([
         axios.get(`${API_BASE}/sites`),
         axios.get(`${API_BASE}/stats`),
-        axios.get(`${API_BASE}/prices`)
+        axios.get(`${API_BASE}/prices`),
+        axios.get(`${API_BASE}/profitability`),
+        axios.get(`${API_BASE}/events`)
       ]);
 
       setSites(sitesRes.data);
       setStats(statsRes.data);
       setPrices(pricesRes.data);
+      setProfitability(profitRes.data);
+      setEvents(eventsRes.data);
       setError(null);
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to fetch data. Make sure the backend is running.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const triggerOptimization = async () => {
+    try {
+      setOptimizing(true);
+      await axios.post(`${API_BASE}/optimize`);
+      // Refresh data after optimization
+      setTimeout(() => {
+        fetchData();
+        setOptimizing(false);
+      }, 2000);
+    } catch (err) {
+      console.error('Error triggering optimization:', err);
+      setOptimizing(false);
+    }
+  };
+
+  const simulateEvent = async () => {
+    if (!eventDescription.trim()) return;
+
+    try {
+      const response = await axios.post(`${API_BASE}/simulate-event`, {
+        description: eventDescription
+      });
+
+      console.log('Event simulation result:', response.data);
+      setEventDescription('');
+
+      // Refresh data to show event effects
+      setTimeout(() => {
+        fetchData();
+      }, 1000);
+    } catch (err) {
+      console.error('Error simulating event:', err);
+    }
+  };
+
+  const clearEvent = async (eventId) => {
+    try {
+      await axios.delete(`${API_BASE}/events/${eventId}`);
+      fetchData(); // Refresh to show cleared effects
+    } catch (err) {
+      console.error('Error clearing event:', err);
     }
   };
 
@@ -106,7 +159,7 @@ function App() {
 
       {/* Stats Section */}
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-2xl font-bold text-blue-600">{stats.total_sites || 0}</div>
             <div className="text-gray-600">Total Sites</div>
@@ -120,6 +173,10 @@ function App() {
             <div className="text-gray-600">Total Power (W)</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
+            <div className="text-2xl font-bold text-emerald-600">{formatCurrency(stats.total_revenue)}</div>
+            <div className="text-gray-600">Total Revenue</div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-2xl font-bold text-orange-600">
               {stats.api_connected ? 'Connected' : 'Disconnected'}
             </div>
@@ -127,26 +184,133 @@ function App() {
           </div>
         </div>
 
-        {/* Market Prices */}
-        {prices.length > 0 && (
-          <div className="bg-white p-6 rounded-lg shadow mb-8">
-            <h2 className="text-xl font-semibold mb-4">Current Market Prices</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <div className="text-lg font-bold text-blue-600">${prices[0]?.energy_price?.toFixed(3)}</div>
-                <div className="text-gray-600">Energy Price</div>
+        {/* Event Simulation */}
+        <div className="bg-white p-6 rounded-lg shadow mb-8">
+          <h2 className="text-xl font-semibold mb-4">🌪️ Event Simulation</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Describe an event:
+                </label>
+                <input
+                  type="text"
+                  value={eventDescription}
+                  onChange={(e) => setEventDescription(e.target.value)}
+                  placeholder="e.g., 'flood in Mission District' or 'heatwave in downtown'"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onKeyPress={(e) => e.key === 'Enter' && simulateEvent()}
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Try: flood, heatwave, power outage, earthquake + location (downtown, mission, soma, sunset)
+                </div>
               </div>
-              <div>
-                <div className="text-lg font-bold text-green-600">${prices[0]?.hash_price?.toFixed(2)}</div>
-                <div className="text-gray-600">Hash Price</div>
-              </div>
-              <div>
-                <div className="text-lg font-bold text-purple-600">${prices[0]?.token_price?.toFixed(2)}</div>
-                <div className="text-gray-600">Token Price</div>
-              </div>
+              <button
+                onClick={simulateEvent}
+                disabled={!eventDescription.trim()}
+                className={`px-4 py-2 rounded text-sm font-medium ${eventDescription.trim()
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+              >
+                🚨 Simulate Event
+              </button>
+            </div>
+
+            <div>
+              <h3 className="font-medium mb-2">Active Events ({Object.keys(events).length})</h3>
+              {Object.keys(events).length > 0 ? (
+                <div className="space-y-2">
+                  {Object.entries(events).map(([eventId, event]) => (
+                    <div key={eventId} className="flex items-center justify-between p-2 bg-red-50 rounded border-l-4 border-red-500">
+                      <div>
+                        <div className="font-medium text-red-800 capitalize">{event.type}</div>
+                        <div className="text-xs text-red-600">
+                          {event.lat?.toFixed(4)}, {event.lng?.toFixed(4)}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => clearEvent(eventId)}
+                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-500 text-sm">No active events</div>
+              )}
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Optimization Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Market Prices */}
+          {prices.length > 0 && (
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Market Prices</h2>
+                <div className="text-xs text-gray-500">Updates every 5 min</div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <div className="text-lg font-bold text-blue-600">${prices[0]?.energy_price?.toFixed(3)}</div>
+                  <div className="text-sm text-gray-600">Energy Price</div>
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-green-600">${prices[0]?.hash_price?.toFixed(2)}</div>
+                  <div className="text-sm text-gray-600">Hash Price</div>
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-purple-600">${prices[0]?.token_price?.toFixed(2)}</div>
+                  <div className="text-sm text-gray-600">Token Price</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Profitability & Optimization */}
+          <div className="bg-white p-6 rounded-lg shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Auto-Optimization</h2>
+              <button
+                onClick={triggerOptimization}
+                disabled={optimizing}
+                className={`px-4 py-2 rounded text-sm font-medium ${optimizing
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+              >
+                {optimizing ? '🔄 Optimizing...' : '🚀 Optimize Now'}
+              </button>
+            </div>
+
+            {Object.keys(profitability).length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm text-gray-600 mb-3">Machine Profitability ($/hour):</div>
+                {Object.entries(profitability)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([machine, profit]) => (
+                    <div key={machine} className="flex justify-between items-center">
+                      <span className="text-sm capitalize">
+                        {machine.replace('_', ' ')}
+                      </span>
+                      <span className={`text-sm font-semibold ${profit > 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                        ${profit.toFixed(2)}
+                      </span>
+                    </div>
+                  ))
+                }
+                <div className="text-xs text-gray-500 mt-3">
+                  🤖 Sites auto-optimize every 5 minutes based on profitability
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Sites List */}
         <div className="bg-white rounded-lg shadow">
@@ -186,41 +350,87 @@ function App() {
                     )}
                   </div>
 
+                  {/* Location Modifiers */}
+                  {site.location_modifiers && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded">
+                      <h4 className="font-medium mb-2 text-blue-800">📍 Location Effects</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        <div>
+                          <div className="text-gray-600">Energy Cost</div>
+                          <div className={`font-semibold ${site.location_modifiers.energy_cost_modifier > 1 ? 'text-red-600' : 'text-green-600'}`}>
+                            {(site.location_modifiers.energy_cost_modifier * 100).toFixed(0)}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-600">Cooling Efficiency</div>
+                          <div className={`font-semibold ${site.location_modifiers.cooling_efficiency > 1 ? 'text-green-600' : 'text-red-600'}`}>
+                            {(site.location_modifiers.cooling_efficiency * 100).toFixed(0)}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-600">Hydro Efficiency</div>
+                          <div className={`font-semibold ${site.location_modifiers.hydro_efficiency > 1 ? 'text-green-600' : 'text-red-600'}`}>
+                            {(site.location_modifiers.hydro_efficiency * 100).toFixed(0)}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-600">Network Latency</div>
+                          <div className={`font-semibold ${site.location_modifiers.network_latency < 1 ? 'text-green-600' : 'text-red-600'}`}>
+                            {(site.location_modifiers.network_latency * 100).toFixed(0)}%
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Machine Details */}
                   {site.machines && (
                     <div className="mt-4 p-4 bg-gray-50 rounded">
                       <h4 className="font-medium mb-2">Machine Allocation</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                        {site.machines.air_miners > 0 && (
-                          <div>
-                            <div className="text-gray-600">Air Miners</div>
-                            <div className="font-semibold">{site.machines.air_miners}</div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        {/* Mining Machines */}
+                        <div>
+                          <h5 className="font-medium text-blue-800 mb-2">⛏️ Bitcoin Mining</h5>
+                          <div className="space-y-1">
+                            {site.machines.air_miners > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Air Miners (1 TH/s)</span>
+                                <span className="font-semibold">{site.machines.air_miners}</span>
+                              </div>
+                            )}
+                            {site.machines.hydro_miners > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Hydro Miners (5 TH/s)</span>
+                                <span className="font-semibold">{site.machines.hydro_miners}</span>
+                              </div>
+                            )}
+                            {site.machines.immersion_miners > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Immersion Miners (10 TH/s)</span>
+                                <span className="font-semibold">{site.machines.immersion_miners}</span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {site.machines.hydro_miners > 0 && (
-                          <div>
-                            <div className="text-gray-600">Hydro Miners</div>
-                            <div className="font-semibold">{site.machines.hydro_miners}</div>
+                        </div>
+
+                        {/* Compute Machines */}
+                        <div>
+                          <h5 className="font-medium text-purple-800 mb-2">🖥️ AI Compute</h5>
+                          <div className="space-y-1">
+                            {site.machines.gpu_compute > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">GPU Compute (1K tok/hr)</span>
+                                <span className="font-semibold">{site.machines.gpu_compute}</span>
+                              </div>
+                            )}
+                            {site.machines.asic_compute > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">ASIC Compute (50K tok/hr)</span>
+                                <span className="font-semibold">{site.machines.asic_compute}</span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {site.machines.immersion_miners > 0 && (
-                          <div>
-                            <div className="text-gray-600">Immersion Miners</div>
-                            <div className="font-semibold">{site.machines.immersion_miners}</div>
-                          </div>
-                        )}
-                        {site.machines.gpu_compute > 0 && (
-                          <div>
-                            <div className="text-gray-600">GPU Compute</div>
-                            <div className="font-semibold">{site.machines.gpu_compute}</div>
-                          </div>
-                        )}
-                        {site.machines.asic_compute > 0 && (
-                          <div>
-                            <div className="text-gray-600">ASIC Compute</div>
-                            <div className="font-semibold">{site.machines.asic_compute}</div>
-                          </div>
-                        )}
+                        </div>
                       </div>
                       {site.machines.total_revenue && (
                         <div className="mt-3 pt-3 border-t">

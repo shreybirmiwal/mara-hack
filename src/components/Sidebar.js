@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import DisasterSimulator from './DisasterSimulator';
+import PriceAnalytics from './PriceAnalytics';
 
 const Sidebar = ({ siteData, onSiteDataUpdate }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -141,10 +142,13 @@ const Sidebar = ({ siteData, onSiteDataUpdate }) => {
             </LineChart>
           </ResponsiveContainer>
         </div>
-      </div>
+                </div>
 
-      {/* Performance Metrics */}
-      <div className="sidebar-section">
+          {/* Price Analytics with Sentiment */}
+          <PriceAnalytics />
+
+          {/* Performance Metrics */}
+          <div className="sidebar-section">
         <h3 className="sidebar-title">Performance Metrics</h3>
         
         <div className="metrics-grid">
